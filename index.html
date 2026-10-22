@@ -3,11 +3,33 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- URL を知っていれば誰でも見られる。検索エンジンには載せない（防御にはならない。4.7） -->
   <meta name="robots" content="noindex, nofollow">
   <title>キー帳</title>
+  <link rel="icon" href="data:,">
+  <!-- 読み込み先の v= の値は、ビルドで内容のハッシュに置き換わる（4.14） -->
+  <link rel="stylesheet" href="style.css?v=e0e4d92730">
+  <script type="module" src="app.js?v=e0e4d92730"></script>
 </head>
 <body>
-  <h1>キー帳</h1>
-  <p>準備中</p>
+  <header class="controls">
+    <input type="search" id="search" placeholder="曲名・アーティストで検索" aria-label="曲名・アーティストで検索" autocomplete="off">
+    <div id="labels" class="filters" role="group" aria-label="ラベルで絞り込み"></div>
+    <div class="sort" role="group" aria-label="並び替え">
+      <button type="button" data-sort="id">登録順</button>
+      <button type="button" data-sort="title">曲名</button>
+      <button type="button" data-sort="artist">アーティスト</button>
+      <button type="button" data-sort="max_note">最高音</button>
+    </div>
+    <p id="count" class="count" role="status"></p>
+  </header>
+
+  <main>
+    <ul id="songs" class="songs"></ul>
+  </main>
+
+  <footer>
+    <p id="updated"></p>
+  </footer>
 </body>
 </html>
