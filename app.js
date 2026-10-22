@@ -1,9 +1,9 @@
 // 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベルの絞り込み・並び替えをして表示する
 
-import { calcKey, midiToNote } from "./keycalc.js?v=da9aa3d1e8";
+import { calcKey, midiToNote } from "./keycalc.js?v=bc3595bbdd";
 import {
   DEFAULT_SORT, filterByLabels, isSortKey, keyParts, matchesSearch, nextSort, sortSongs, textColorFor,
-} from "./list.js?v=da9aa3d1e8";
+} from "./list.js?v=bc3595bbdd";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 
@@ -59,7 +59,7 @@ function saveSort() {
 async function load() {
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=da9aa3d1e8", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=bc3595bbdd", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
