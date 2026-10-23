@@ -82,19 +82,41 @@ function matchMax(voice, song, { key_range: keyRange, raise_if_room: raiseIfRoom
   return { key: d + 12, octaveDown: true, octaveUp: false };
 }
 
-/** 最低音で合わせる（4.4.1。最高音のルールの上下反対。raise_if_room は使わない） */
+/**
+ * 最低音で合わせる声（4.4.1）：最高音が出ることを優先し、できれば最低音も出す。
+ * オクターブ（そのまま・1つ上・1つ下）とキーの組み合わせから選ぶ。raise_if_room は使わない。
+ */
 function matchMin(voice, song, { key_range: keyRange }) {
   if (song.min_note == null || voice.min_note == null) {
     return null;
   }
-  const d = voice.min_note - song.min_note;
-  if (d <= 0) {
-    return { key: 0, octaveDown: false, octaveUp: false };
+  // 曲か声の最高音が分からなければ、最高音の条件は満たすものとして扱う
+  const topKnown = song.max_note != null && voice.max_note != null;
+  const fitsTop = (shift) => !topKnown || song.max_note + shift <= voice.max_note;
+  const fitsLow = (shift) => song.min_note + shift >= voice.min_note;
+  const result = (key, octave) => ({ key, octaveDown: octave < 0, octaveUp: octave > 0 });
+
+  // a. 最高音も最低音も出るずらし方：オクターブはそのまま → 上 → 下、その中でキーは 0 に近い順
+  const keys = [0];
+  for (let k = 1; k <= keyRange; k += 1) {
+    keys.push(-k, k);
   }
-  if (d <= keyRange) {
-    return { key: d, octaveDown: false, octaveUp: false };
+  for (const octave of [0, 1, -1]) {
+    const key = keys.find((k) => fitsTop(octave * 12 + k) && fitsLow(octave * 12 + k));
+    if (key !== undefined) {
+      return result(key, octave);
+    }
   }
-  return { key: d - 12, octaveDown: false, octaveUp: true };
+  // b. 両方は無理：最高音を優先して、最高音にぴったり合わせる（届かなければ1オクターブ下、それでも届かなければ範囲外）
+  if (!topKnown) {
+    // 最低音が 1オクターブ＋key_range より下：最低音に合わせて1オクターブ上（範囲外）
+    return result(voice.min_note - song.min_note - 12, 1);
+  }
+  const room = voice.max_note - song.max_note;
+  if (room >= -keyRange) {
+    return result(Math.min(room, keyRange), 0);
+  }
+  return result(room + 12, -1);
 }
 
 /** キーがカラオケで変えられる範囲（±key_range）を超えているか */

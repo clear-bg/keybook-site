@@ -9,6 +9,10 @@
   --border: #d0d7de;
   --accent: #0969da;
   --warn: #cf222e;
+  --octave-down-bg: #fff1d6;
+  --octave-down-fg: #8a5300;
+  --octave-up-bg: #ddf4ff;
+  --octave-up-fg: #0a4a8a;
   --hover-bg: color-mix(in srgb, var(--accent) 8%, transparent);
   font-family: system-ui, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
 }
@@ -22,6 +26,10 @@
     --border: #30363d;
     --accent: #4493f8;
     --warn: #f85149;
+    --octave-down-bg: #3b2f12;
+    --octave-down-fg: #f2c46d;
+    --octave-up-bg: #10314a;
+    --octave-up-fg: #79c0ff;
   }
 }
 
@@ -331,6 +339,35 @@ footer {
   flex-direction: column;
   align-items: flex-end;
   text-align: right;
+}
+
+.song .key-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* オクターブの印（下に歌う＝暖色、上に歌う＝寒色。4.4.1） */
+.octave {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.octave.down {
+  background: var(--octave-down-bg);
+  color: var(--octave-down-fg);
+}
+
+.octave.up {
+  background: var(--octave-up-bg);
+  color: var(--octave-up-fg);
 }
 
 .song .key-text {

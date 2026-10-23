@@ -1,10 +1,10 @@
 // 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベルの絞り込み・並び替えをして表示する
 
-import { calcKey, midiToNote } from "./keycalc.js?v=4be12f2cba";
+import { calcKey, midiToNote } from "./keycalc.js?v=9524eef12e";
 import {
-  DEFAULT_SORT, filterByLabels, isSortKey, keyParts, matchesSearch, nextSort, sortSongs, textColorFor,
+  DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, matchesSearch, nextSort, sortSongs,
   adjustVoice, adjustedVoice, canAdjust, formatOffset, isAdjusted, resetAdjust, restoreVoiceChoice, selectVoice,
-} from "./list.js?v=4be12f2cba";
+} from "./list.js?v=9524eef12e";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 const VOICE_STORAGE_KEY = "keybook.voice";
@@ -82,7 +82,7 @@ async function load() {
   let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=4be12f2cba", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=9524eef12e", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
@@ -114,10 +114,6 @@ function formatDate(iso) {
 }
 
 // ---- 表示 ----
-
-function labelStyle(label) {
-  return label.color ? `background: ${label.color}; color: ${textColorFor(label.color)}; border-color: ${label.color}` : "";
-}
 
 function renderLabels() {
   const labels = [...state.data.labels].sort((a, b) => a.order - b.order);
@@ -167,12 +163,9 @@ function renderVoice() {
     return;
   }
   const voice = voices.find((v) => v.id === state.voice.voiceId);
-  // キーの計算に使う方に「（基準）」を添える（4.4.1）
-  const basis = voice.match_by === "min" ? "min_note" : "max_note";
-  const label = (field, name) => (field === basis ? `${name}（基準）` : name);
   $("voice-adjust").replaceChildren(
-    pitchControl("max_note", label("max_note", "最高音"), voice),
-    pitchControl("min_note", label("min_note", "最低音"), voice),
+    pitchControl("max_note", "最高音", voice),
+    pitchControl("min_note", "最低音", voice),
     ...(isAdjusted(state.voice)
       ? [el("button", { type: "button", className: "voice-reset", onclick: () => changeVoice(resetAdjust(state.voice)) }, "元に戻す")]
       : []),
@@ -238,6 +231,15 @@ function render() {
   }
 }
 
+/** オクターブの印（下に歌う＝↓、上に歌う＝↑。4.4.1） */
+function octaveMark(octave) {
+  return el(
+    "span",
+    { className: `octave ${octave.direction}`, title: octave.label, "aria-hidden": "true" },
+    octave.direction === "down" ? "↓" : "↑",
+  );
+}
+
 function renderSong(song, labels, voice) {
   const key = keyParts(calcKey(voice, song, state.data.settings));
   const songLabels = song.label_ids.map((id) => labels.get(id)).filter(Boolean).sort((a, b) => a.order - b.order);
@@ -250,9 +252,15 @@ function renderSong(song, labels, voice) {
       "div",
       {
         className: ["key", key.text === "?" && "unknown", key.outOfRange && "out-of-range"].filter(Boolean).join(" "),
-        "aria-label": `キー ${key.text}${key.notes.map((note) => `、${note}`).join("")}`,
+        "aria-label": `キー ${key.text}${[key.octave?.label, ...key.notes].filter(Boolean).map((note) => `、${note}`).join("")}`,
       },
-      el("span", { className: "key-text" }, key.text),
+      el(
+        "span",
+        { className: "key-main" },
+        // オクターブをずらすときは、キーの左に矢印の印（4.4.1）
+        ...(key.octave ? [octaveMark(key.octave)] : []),
+        el("span", { className: "key-text" }, key.text),
+      ),
       ...key.notes.map((note) => el("span", { className: "key-note" }, note)),
     ),
     el(
@@ -298,6 +306,17 @@ if ("serviceWorker" in navigator && !LOCAL_HOSTS.includes(location.hostname)) {
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data?.type === "songs-updated") {
       load();
+    }
+  });
+  // 新しいバージョンの Service Worker に切り替わったら、ページを読み直して新しい画面にする
+  // （古い画面のまま新しい形式の songs.json を受け取ると描き直せないため）。
+  // 初めて入ったとき（開いた時点で Service Worker がなかった）は、もう新しい画面なので読み直さない
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (hadController && !reloading) {
+      reloading = true;
+      location.reload();
     }
   });
 }

@@ -1,33 +1,35 @@
 // 曲の一覧の処理（閲覧ページと管理画面で共用。DOM に依存しないので node --test で確かめる）
 // docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）
 
-import { MIN_MIDI, MAX_MIDI } from "./keycalc.js?v=4be12f2cba";
+import { MIN_MIDI, MAX_MIDI } from "./keycalc.js?v=9524eef12e";
 
 // ---- キーの表示 ----
 
-/** calcKey の結果を、キーの文字（"+4"、0 は "原キー"、計算不能は "?"）と注記（"1オクターブ下" など）に分ける */
+/**
+ * calcKey の結果を、キーの文字（"+4"、0 は "原キー"、計算不能は "?"）、注記（"指定"・"範囲外"）、
+ * オクターブ（画面ではキーの左に矢印の印を出す。4.4.1）に分ける
+ */
 export function keyParts({ key, octaveDown, octaveUp, overridden, outOfRange }) {
   if (key == null) {
-    return { text: "?", notes: [], outOfRange: false };
+    return { text: "?", notes: [], octave: null, outOfRange: false };
   }
   const text = key > 0 ? `+${key}` : key < 0 ? `−${-key}` : "原キー";
+  const octave = octaveDown
+    ? { direction: "down", label: "1オクターブ下" }
+    : octaveUp
+      ? { direction: "up", label: "1オクターブ上" }
+      : null;
   const notes = [];
-  if (octaveDown) {
-    notes.push("1オクターブ下");
-  }
-  if (octaveUp) {
-    notes.push("1オクターブ上");
-  }
   if (overridden) {
     notes.push("指定");
   }
   if (outOfRange) {
     notes.push("範囲外");
   }
-  return { text, notes, outOfRange: Boolean(outOfRange) };
+  return { text, notes, octave, outOfRange: Boolean(outOfRange) };
 }
 
-/** calcKey の結果を1行の文字列にする（例："+4（1オクターブ下）"） */
+/** calcKey の結果を1行の文字列にする（例："−8（範囲外）"。オクターブは含めない：画面で印を出す） */
 export function formatKey(result) {
   const { text, notes } = keyParts(result);
   return text + notes.map((note) => `（${note}）`).join("");
@@ -185,6 +187,11 @@ export function formatOffset(offset) {
 }
 
 // ---- ラベルの色 ----
+
+/** ラベルの札の色（色付きはその色で塗り、文字は読みやすい色に。色がなければ ""） */
+export function labelStyle(label) {
+  return label.color ? `background: ${label.color}; color: ${textColorFor(label.color)}; border-color: ${label.color}` : "";
+}
 
 /** 背景色（#rrggbb）の上で読みやすい文字の色（黒か白） */
 export function textColorFor(hex) {
