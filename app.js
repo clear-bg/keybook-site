@@ -1,9 +1,9 @@
 // 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベルの絞り込み・並び替えをして表示する
 
-import { calcKey, midiToNote } from "./keycalc.js?v=bc3595bbdd";
+import { calcKey, midiToNote } from "./keycalc.js?v=13b7702e64";
 import {
   DEFAULT_SORT, filterByLabels, isSortKey, keyParts, matchesSearch, nextSort, sortSongs, textColorFor,
-} from "./list.js?v=bc3595bbdd";
+} from "./list.js?v=13b7702e64";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 
@@ -57,20 +57,30 @@ function saveSort() {
 // ---- 読み込み ----
 
 async function load() {
+  let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=bc3595bbdd", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=13b7702e64", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
-    state.data = await res.json();
+    data = await res.json();
   } catch {
-    $("count").textContent = "曲の一覧を読み込めませんでした。電波のよいところで再読み込みしてください。";
+    // 読み直しに失敗したときは、表示中の一覧をそのまま残す
+    if (!state.data) {
+      $("count").textContent = "曲の一覧を読み込めませんでした。電波のよいところで再読み込みしてください。";
+    }
     return;
   }
-  $("updated").textContent = `${formatDate(state.data.generated_at)} 更新`;
+  state.data = data;
+  // 読み直したときに消えたラベルは、絞り込みからも外す
+  state.labelIds = state.labelIds.filter((id) => data.labels.some((label) => label.id === id));
+  $("updated").textContent = `${formatDate(data.generated_at)} 更新`;
+  // 読み直して描き直しても、見ていた位置から動かさない
+  const scrollY = window.scrollY;
   renderLabels();
   render();
+  window.scrollTo(0, scrollY);
 }
 
 function formatDate(iso) {
@@ -144,7 +154,10 @@ function renderSong(song, labels) {
     el("p", { className: "title" }, song.title),
     el(
       "div",
-      { className: key.text === "?" ? "key unknown" : "key", "aria-label": `キー ${key.text}` },
+      {
+        className: ["key", key.text === "?" && "unknown", key.outOfRange && "out-of-range"].filter(Boolean).join(" "),
+        "aria-label": `キー ${key.text}${key.notes.map((note) => `、${note}`).join("")}`,
+      },
       el("span", { className: "key-text" }, key.text),
       ...key.notes.map((note) => el("span", { className: "key-note" }, note)),
     ),
@@ -174,6 +187,23 @@ for (const button of document.querySelectorAll(".sort button")) {
     saveSort();
     if (state.data) {
       render();
+    }
+  });
+}
+
+// ---- オフライン表示（4.14） ----
+
+// 管理アプリの確認用ページでは使わない（開発中に古い画面が出ないように）
+const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
+
+if ("serviceWorker" in navigator && !LOCAL_HOSTS.includes(location.hostname)) {
+  navigator.serviceWorker.register("sw.js").catch(() => {
+    // 登録できなくても、オンラインなら今までどおり見られる
+  });
+  // Service Worker が新しい songs.json を受け取ったら、読み直して描き直す
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data?.type === "songs-updated") {
+      load();
     }
   });
 }

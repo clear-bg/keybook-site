@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#F2B134"/>
+  <defs><clipPath id="bk"><rect x="150" y="110" width="220" height="290" rx="22"/></clipPath></defs>
+  <rect x="150" y="110" width="220" height="290" rx="22" fill="#FFFDF5"/>
+  <rect x="150" y="110" width="38" height="290" fill="#F7DFA6" clip-path="url(#bk)"/>
+  <g fill="#2D3047">
+    <rect x="134" y="140" width="38" height="13" rx="6.5"/><rect x="134" y="186" width="38" height="13" rx="6.5"/>
+    <rect x="134" y="232" width="38" height="13" rx="6.5"/><rect x="134" y="278" width="38" height="13" rx="6.5"/>
+    <rect x="134" y="324" width="38" height="13" rx="6.5"/><rect x="134" y="370" width="38" height="13" rx="6.5"/>
+  </g>
+  <g fill="#2D3047">
+    <ellipse cx="262" cy="318" rx="40" ry="29" transform="rotate(-22 262 318)"/>
+    <path d="M286.6 314 L286.6 162 Q286.6 156 292.6 156 L300.6 156
+             C 302 184, 318 197, 335 213
+             C 354 231, 362 253, 356 279
+             C 353 292, 346 302, 338 309
+             C 345 291, 347 273, 339 257
+             C 331 241, 317 232, 300.6 228
+             L 300.6 314 Z"/>
+  </g>
+</svg>

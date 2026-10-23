@@ -8,6 +8,7 @@
   --muted: #656d76;
   --border: #d0d7de;
   --accent: #0969da;
+  --warn: #cf222e;
   --hover-bg: color-mix(in srgb, var(--accent) 8%, transparent);
   font-family: system-ui, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
 }
@@ -20,6 +21,7 @@
     --muted: #8d96a0;
     --border: #30363d;
     --accent: #4493f8;
+    --warn: #f85149;
   }
 }
 
@@ -243,6 +245,12 @@ footer {
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
+}
+
+/* キーが ±key_range を超えている（4.4） */
+.song .key.out-of-range .key-text,
+.song .key.out-of-range .key-note {
+  color: var(--warn);
 }
 
 .song .chip {

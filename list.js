@@ -4,9 +4,9 @@
 // ---- キーの表示 ----
 
 /** calcKey の結果を、キーの文字（"+4"、0 は "原キー"、計算不能は "?"）と注記（"1オクターブ下" など）に分ける */
-export function keyParts({ key, octaveDown, overridden }) {
+export function keyParts({ key, octaveDown, overridden, outOfRange }) {
   if (key == null) {
-    return { text: "?", notes: [] };
+    return { text: "?", notes: [], outOfRange: false };
   }
   const text = key > 0 ? `+${key}` : key < 0 ? `−${-key}` : "原キー";
   const notes = [];
@@ -16,7 +16,10 @@ export function keyParts({ key, octaveDown, overridden }) {
   if (overridden) {
     notes.push("指定");
   }
-  return { text, notes };
+  if (outOfRange) {
+    notes.push("範囲外");
+  }
+  return { text, notes, outOfRange: Boolean(outOfRange) };
 }
 
 /** calcKey の結果を1行の文字列にする（例："+4（1オクターブ下）"） */

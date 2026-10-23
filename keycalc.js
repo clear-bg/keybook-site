@@ -47,17 +47,18 @@ export function midiToNote(midi) {
  * 原曲に対するキーを求める（4.4 最高音優先）。
  * voice・song・settings はエクスポート形式（4.8）と同じ項目名で受け取る。
  * min_note などの将来用の項目も渡してよい（現時点では使わない）。
- * @returns {{ key: number|null, octaveDown: boolean, overridden: boolean }}
+ * @returns {{ key: number|null, octaveDown: boolean, overridden: boolean, outOfRange: boolean }}
  *   key が null なら計算不能（画面では「?」と表示する）
+ *   outOfRange は最終キーが ±key_range を超えているか（キーの値は変えず、画面で印を出す）
  */
 export function calcKey(voice, song, settings) {
   // 1. キー指定があればそれを最終キーとする（微調整は無視）
   if (song.key_override != null) {
-    return { key: song.key_override, octaveDown: false, overridden: true };
+    return { key: song.key_override, octaveDown: false, overridden: true, outOfRange: isOutOfRange(song.key_override, settings) };
   }
   // 2. 曲または自分の最高音が空なら計算不能
   if (song.max_note == null || voice.max_note == null) {
-    return { key: null, octaveDown: false, overridden: false };
+    return { key: null, octaveDown: false, overridden: false, outOfRange: false };
   }
   // 3. 自分の最高音との差で決める
   const { key_range: keyRange, raise_if_room: raiseIfRoom } = settings;
@@ -73,5 +74,11 @@ export function calcKey(voice, song, settings) {
     octaveDown = true;
   }
   // 4. 微調整を加える
-  return { key: base + (song.key_adjust ?? 0), octaveDown, overridden: false };
+  const key = base + (song.key_adjust ?? 0);
+  return { key, octaveDown, overridden: false, outOfRange: isOutOfRange(key, settings) };
+}
+
+/** キーがカラオケで変えられる範囲（±key_range）を超えているか */
+function isOutOfRange(key, settings) {
+  return Math.abs(key) > settings.key_range;
 }
