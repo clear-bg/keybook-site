@@ -44,38 +44,57 @@ export function midiToNote(midi) {
 }
 
 /**
- * 原曲に対するキーを求める（4.4 最高音優先）。
+ * 原曲に対するキーを求める（4.4）。
+ * 声の match_by が "min" なら最低音で、それ以外は最高音で合わせる（4.4.1）。
  * voice・song・settings はエクスポート形式（4.8）と同じ項目名で受け取る。
- * min_note などの将来用の項目も渡してよい（現時点では使わない）。
- * @returns {{ key: number|null, octaveDown: boolean, overridden: boolean, outOfRange: boolean }}
+ * @returns {{ key: number|null, octaveDown: boolean, octaveUp: boolean, overridden: boolean, outOfRange: boolean }}
  *   key が null なら計算不能（画面では「?」と表示する）
  *   outOfRange は最終キーが ±key_range を超えているか（キーの値は変えず、画面で印を出す）
  */
 export function calcKey(voice, song, settings) {
   // 1. キー指定があればそれを最終キーとする（微調整は無視）
   if (song.key_override != null) {
-    return { key: song.key_override, octaveDown: false, overridden: true, outOfRange: isOutOfRange(song.key_override, settings) };
+    const key = song.key_override;
+    return { key, octaveDown: false, octaveUp: false, overridden: true, outOfRange: isOutOfRange(key, settings) };
   }
-  // 2. 曲または自分の最高音が空なら計算不能
-  if (song.max_note == null || voice.max_note == null) {
-    return { key: null, octaveDown: false, overridden: false, outOfRange: false };
-  }
-  // 3. 自分の最高音との差で決める
-  const { key_range: keyRange, raise_if_room: raiseIfRoom } = settings;
-  const d = voice.max_note - song.max_note;
-  let base;
-  let octaveDown = false;
-  if (d >= 0) {
-    base = raiseIfRoom ? Math.min(d, keyRange) : 0;
-  } else if (d >= -keyRange) {
-    base = d;
-  } else {
-    base = d + 12;
-    octaveDown = true;
+  // 2〜3. 合わせる音で、微調整の前のキーを決める（計算できなければ null）
+  const base = voice.match_by === "min" ? matchMin(voice, song, settings) : matchMax(voice, song, settings);
+  if (base == null) {
+    return { key: null, octaveDown: false, octaveUp: false, overridden: false, outOfRange: false };
   }
   // 4. 微調整を加える
-  const key = base + (song.key_adjust ?? 0);
-  return { key, octaveDown, overridden: false, outOfRange: isOutOfRange(key, settings) };
+  const key = base.key + (song.key_adjust ?? 0);
+  return { key, octaveDown: base.octaveDown, octaveUp: base.octaveUp, overridden: false, outOfRange: isOutOfRange(key, settings) };
+}
+
+/** 最高音で合わせる（4.4 の 2・3） */
+function matchMax(voice, song, { key_range: keyRange, raise_if_room: raiseIfRoom }) {
+  if (song.max_note == null || voice.max_note == null) {
+    return null;
+  }
+  const d = voice.max_note - song.max_note;
+  if (d >= 0) {
+    return { key: raiseIfRoom ? Math.min(d, keyRange) : 0, octaveDown: false, octaveUp: false };
+  }
+  if (d >= -keyRange) {
+    return { key: d, octaveDown: false, octaveUp: false };
+  }
+  return { key: d + 12, octaveDown: true, octaveUp: false };
+}
+
+/** 最低音で合わせる（4.4.1。最高音のルールの上下反対。raise_if_room は使わない） */
+function matchMin(voice, song, { key_range: keyRange }) {
+  if (song.min_note == null || voice.min_note == null) {
+    return null;
+  }
+  const d = voice.min_note - song.min_note;
+  if (d <= 0) {
+    return { key: 0, octaveDown: false, octaveUp: false };
+  }
+  if (d <= keyRange) {
+    return { key: d, octaveDown: false, octaveUp: false };
+  }
+  return { key: d - 12, octaveDown: false, octaveUp: true };
 }
 
 /** キーがカラオケで変えられる範囲（±key_range）を超えているか */

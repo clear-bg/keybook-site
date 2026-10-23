@@ -1,10 +1,12 @@
 // 曲の一覧の処理（閲覧ページと管理画面で共用。DOM に依存しないので node --test で確かめる）
-// docs/design.md 4.9（検索）・4.16（閲覧ページ）
+// docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）
+
+import { MIN_MIDI, MAX_MIDI } from "./keycalc.js?v=4be12f2cba";
 
 // ---- キーの表示 ----
 
 /** calcKey の結果を、キーの文字（"+4"、0 は "原キー"、計算不能は "?"）と注記（"1オクターブ下" など）に分ける */
-export function keyParts({ key, octaveDown, overridden, outOfRange }) {
+export function keyParts({ key, octaveDown, octaveUp, overridden, outOfRange }) {
   if (key == null) {
     return { text: "?", notes: [], outOfRange: false };
   }
@@ -12,6 +14,9 @@ export function keyParts({ key, octaveDown, overridden, outOfRange }) {
   const notes = [];
   if (octaveDown) {
     notes.push("1オクターブ下");
+  }
+  if (octaveUp) {
+    notes.push("1オクターブ上");
   }
   if (overridden) {
     notes.push("指定");
@@ -93,6 +98,90 @@ export function nextSort(current, key) {
 
 export function isSortKey(key) {
   return Object.hasOwn(SORTS, key);
+}
+
+// ---- 声の選択と調整（4.3.1） ----
+// 選択は { voiceId, offsets: { max_note, min_note } }（選んでいなければ null）。ブラウザに覚えさせる形と同じ。
+
+export const VOICE_ADJUST_LIMIT = 6;
+const ADJUST_FIELDS = ["max_note", "min_note"];
+
+const noOffsets = () => Object.fromEntries(ADJUST_FIELDS.map((field) => [field, 0]));
+const findVoice = (voices, choice) => (choice ? voices.find((voice) => voice.id === choice.voiceId) : undefined);
+
+/** 覚えていた選択を、今の声の一覧に合わせて読み込む（声がなくなっていれば null、変な調整は 0） */
+export function restoreVoiceChoice(saved, voices) {
+  if (!saved || typeof saved !== "object" || !saved.offsets || typeof saved.offsets !== "object") {
+    return null;
+  }
+  if (!findVoice(voices, saved)) {
+    return null;
+  }
+  const offsets = noOffsets();
+  for (const field of ADJUST_FIELDS) {
+    const value = saved.offsets[field];
+    if (Number.isInteger(value) && Math.abs(value) <= VOICE_ADJUST_LIMIT) {
+      offsets[field] = value;
+    }
+  }
+  return { voiceId: saved.voiceId, offsets };
+}
+
+/** 声を選ぶ。別の声に切り替えたら調整は 0 に戻す */
+export function selectVoice(choice, voiceId) {
+  if (choice && choice.voiceId === voiceId) {
+    return choice;
+  }
+  return { voiceId, offsets: noOffsets() };
+}
+
+/** field（max_note・min_note）を delta だけ動かせるか（±6 まで、音高の範囲内、声の値が空なら不可） */
+export function canAdjust(choice, voices, field, delta) {
+  const base = findVoice(voices, choice)?.[field];
+  if (base == null) {
+    return false;
+  }
+  const offset = choice.offsets[field] + delta;
+  return Math.abs(offset) <= VOICE_ADJUST_LIMIT && base + offset >= MIN_MIDI && base + offset <= MAX_MIDI;
+}
+
+/** field を delta だけ動かした新しい選択（動かせなければそのまま） */
+export function adjustVoice(choice, voices, field, delta) {
+  if (!canAdjust(choice, voices, field, delta)) {
+    return choice;
+  }
+  return { ...choice, offsets: { ...choice.offsets, [field]: choice.offsets[field] + delta } };
+}
+
+export function isAdjusted(choice) {
+  return Boolean(choice) && ADJUST_FIELDS.some((field) => choice.offsets[field] !== 0);
+}
+
+/** 調整を 0 に戻す（声は残す） */
+export function resetAdjust(choice) {
+  return { ...choice, offsets: noOffsets() };
+}
+
+/** 調整したあとの声（最高音・最低音と、合わせる音。選んでいなければ null） */
+export function adjustedVoice(choice, voices) {
+  const voice = findVoice(voices, choice);
+  if (!voice) {
+    return null;
+  }
+  return {
+    ...Object.fromEntries(
+      ADJUST_FIELDS.map((field) => [field, voice[field] == null ? null : voice[field] + choice.offsets[field]]),
+    ),
+    match_by: voice.match_by,
+  };
+}
+
+/** 調整の差の表示（"（+2）"、0 なら ""） */
+export function formatOffset(offset) {
+  if (offset === 0) {
+    return "";
+  }
+  return offset > 0 ? `（+${offset}）` : `（−${-offset}）`;
 }
 
 // ---- ラベルの色 ----

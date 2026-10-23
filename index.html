@@ -13,10 +13,19 @@
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#F2B134">
   <!-- 読み込み先の v= の値は、ビルドで内容のハッシュに置き換わる（4.14） -->
-  <link rel="stylesheet" href="style.css?v=032cd94ee3">
-  <script type="module" src="app.js?v=032cd94ee3"></script>
+  <link rel="stylesheet" href="style.css?v=4be12f2cba">
+  <script type="module" src="app.js?v=4be12f2cba"></script>
 </head>
 <body>
+  <!-- 声の選択と調整（4.3.1）。一度合わせれば足りるので、スクロールすると隠れる場所に置く -->
+  <section id="voice" class="voice" aria-label="声の選択と調整" hidden>
+    <div class="voice-row">
+      <span class="voice-label">声</span>
+      <div id="voice-buttons" class="voice-buttons" role="group" aria-label="声を選ぶ"></div>
+    </div>
+    <div id="voice-adjust" class="voice-row"></div>
+  </section>
+
   <header class="controls">
     <input type="search" id="search" placeholder="曲名・アーティストで検索" aria-label="曲名・アーティストで検索" autocomplete="off">
     <div id="labels" class="filters" role="group" aria-label="ラベルで絞り込み"></div>
