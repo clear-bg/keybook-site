@@ -1,10 +1,10 @@
 // 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベルの絞り込み・並び替えをして表示する
 
-import { calcKey, midiToNote } from "./keycalc.js?v=9524eef12e";
+import { calcKey, midiToNote } from "./keycalc.js?v=45f8aa1430";
 import {
   DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, matchesSearch, nextSort, sortSongs,
   adjustVoice, adjustedVoice, canAdjust, formatOffset, isAdjusted, resetAdjust, restoreVoiceChoice, selectVoice,
-} from "./list.js?v=9524eef12e";
+} from "./list.js?v=45f8aa1430";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 const VOICE_STORAGE_KEY = "keybook.voice";
@@ -82,7 +82,7 @@ async function load() {
   let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=9524eef12e", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=45f8aa1430", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
@@ -257,9 +257,9 @@ function renderSong(song, labels, voice) {
       el(
         "span",
         { className: "key-main" },
-        // オクターブをずらすときは、キーの左に矢印の印（4.4.1）
-        ...(key.octave ? [octaveMark(key.octave)] : []),
+        // オクターブをずらすときは、キーの右に矢印の印（4.4.1）
         el("span", { className: "key-text" }, key.text),
+        ...(key.octave ? [octaveMark(key.octave)] : []),
       ),
       ...key.notes.map((note) => el("span", { className: "key-note" }, note)),
     ),

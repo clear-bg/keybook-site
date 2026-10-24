@@ -1,13 +1,13 @@
 // 曲の一覧の処理（閲覧ページと管理画面で共用。DOM に依存しないので node --test で確かめる）
 // docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）
 
-import { MIN_MIDI, MAX_MIDI } from "./keycalc.js?v=9524eef12e";
+import { MIN_MIDI, MAX_MIDI } from "./keycalc.js?v=45f8aa1430";
 
 // ---- キーの表示 ----
 
 /**
  * calcKey の結果を、キーの文字（"+4"、0 は "原キー"、計算不能は "?"）、注記（"指定"・"範囲外"）、
- * オクターブ（画面ではキーの左に矢印の印を出す。4.4.1）に分ける
+ * オクターブ（画面ではキーの右に矢印の印を出す。4.4.1）に分ける
  */
 export function keyParts({ key, octaveDown, octaveUp, overridden, outOfRange }) {
   if (key == null) {
