@@ -1,7 +1,7 @@
 // 曲の一覧の処理（閲覧ページと管理画面で共用。DOM に依存しないので node --test で確かめる）
 // docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）
 
-import { MIN_MIDI, MAX_MIDI } from "./keycalc.js?v=45f8aa1430";
+import { MIN_MIDI, MAX_MIDI } from "./keycalc.js?v=f6f7118e32";
 
 // ---- キーの表示 ----
 
@@ -61,13 +61,21 @@ export function filterByLabels(songs, labelIds) {
   return songs.filter((song) => labelIds.every((id) => song.label_ids.includes(id)));
 }
 
+/** 開いたときに最初から選んでおくラベルの ID（表示順） */
+export function preselectedLabelIds(labels) {
+  return labels
+    .filter((label) => label.preselected === true)
+    .sort((a, b) => a.order - b.order)
+    .map((label) => label.id);
+}
+
 // ---- 並び替え ----
 
 const collator = new Intl.Collator("ja");
 
 // 並び替えの項目と、最初にタップしたときの向き
 const SORTS = {
-  id: { desc: true, compare: (a, b) => a.id - b.id },
+  id: { desc: false, compare: (a, b) => a.id - b.id },
   title: { desc: false, compare: (a, b) => collator.compare(a.title_kana || a.title, b.title_kana || b.title) },
   artist: {
     desc: false,
@@ -76,7 +84,7 @@ const SORTS = {
   max_note: { desc: true, compare: (a, b) => a.max_note - b.max_note, missing: (song) => song.max_note == null },
 };
 
-export const DEFAULT_SORT = { key: "id", desc: true };
+export const DEFAULT_SORT = { key: "id", desc: false };
 
 /** 並び替えた新しい配列を返す。値が空の曲は向きによらず最後、同じ値なら新しい順。 */
 export function sortSongs(songs, { key, desc }) {

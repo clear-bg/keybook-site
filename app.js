@@ -1,10 +1,10 @@
 // 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベルの絞り込み・並び替えをして表示する
 
-import { calcKey, midiToNote } from "./keycalc.js?v=45f8aa1430";
+import { calcKey, midiToNote } from "./keycalc.js?v=f6f7118e32";
 import {
-  DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, matchesSearch, nextSort, sortSongs,
+  DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, matchesSearch, nextSort, preselectedLabelIds, sortSongs,
   adjustVoice, adjustedVoice, canAdjust, formatOffset, isAdjusted, resetAdjust, restoreVoiceChoice, selectVoice,
-} from "./list.js?v=45f8aa1430";
+} from "./list.js?v=f6f7118e32";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 const VOICE_STORAGE_KEY = "keybook.voice";
@@ -82,7 +82,7 @@ async function load() {
   let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=45f8aa1430", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=f6f7118e32", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
@@ -93,6 +93,10 @@ async function load() {
       $("count").textContent = "曲の一覧を読み込めませんでした。電波のよいところで再読み込みしてください。";
     }
     return;
+  }
+  // 開いたときだけ、最初から選ぶラベルを選ぶ（読み直したときは見る人の選択を残す。4.16）
+  if (!state.data) {
+    state.labelIds = preselectedLabelIds(data.labels);
   }
   state.data = data;
   // 覚えていた声がなくなっていたら、選んでいない状態にする
