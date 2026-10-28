@@ -13,6 +13,13 @@
   --octave-down-fg: #8a5300;
   --octave-up-bg: #ddf4ff;
   --octave-up-fg: #0a4a8a;
+  /* 曲の詳細の音域の図（4.16.1） */
+  --voice-soft: #cfe3fb;
+  --bar-original: #8c959f;
+  --roll-black: #eef1f4;
+  --key-white: #ffffff;
+  --key-black: #3d444d;
+  --overlay: rgba(31, 35, 40, 0.45);
   --hover-bg: color-mix(in srgb, var(--accent) 8%, transparent);
   font-family: system-ui, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
 }
@@ -30,6 +37,12 @@
     --octave-down-fg: #f2c46d;
     --octave-up-bg: #10314a;
     --octave-up-fg: #79c0ff;
+    --voice-soft: #17345a;
+    --bar-original: #6e7681;
+    --roll-black: #1c2129;
+    --key-white: #d7dde3;
+    --key-black: #1b1f24;
+    --overlay: rgba(1, 4, 9, 0.7);
   }
 }
 
@@ -303,6 +316,20 @@ footer {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
+  /* 押すと曲の詳細が出る（4.16.1） */
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+@media (hover: hover) {
+  .song:hover {
+    border-color: var(--accent);
+  }
+}
+
+.song:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .song .title {
@@ -335,13 +362,16 @@ footer {
 
 .song .key {
   grid-area: key;
+}
+
+.key {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   text-align: right;
 }
 
-.song .key-main {
+.key-main {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -370,7 +400,7 @@ footer {
   color: var(--octave-up-fg);
 }
 
-.song .key-text {
+.key-text {
   font-size: 1.4rem;
   font-weight: 700;
   line-height: 1.1;
@@ -378,11 +408,11 @@ footer {
   white-space: nowrap;
 }
 
-.song .key.unknown .key-text {
+.key.unknown .key-text {
   color: var(--muted);
 }
 
-.song .key-note {
+.key-note {
   color: var(--accent);
   font-size: 0.7rem;
   font-weight: 600;
@@ -391,12 +421,12 @@ footer {
 }
 
 /* キーが ±key_range を超えている（4.4） */
-.song .key.out-of-range .key-text,
-.song .key.out-of-range .key-note {
+.key.out-of-range .key-text,
+.key.out-of-range .key-note {
   color: var(--warn);
 }
 
-.song .chip {
+.chip {
   padding: 0 7px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -427,8 +457,285 @@ footer p {
   text-align: center;
 }
 
+/* ---- 曲の詳細（下から出るシート。4.16.1） ---- */
+
+/* 開いている間は後ろの一覧をスクロールさせない */
+.detail-open {
+  overflow: hidden;
+}
+
+.detail {
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  max-height: 90dvh;
+  margin: auto auto 0;
+  padding: 0;
+  border: 0;
+  border-radius: 16px 16px 0 0;
+  background: var(--bg);
+  color: var(--fg);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.detail::backdrop {
+  background: var(--overlay);
+}
+
+.detail[open] {
+  animation: detail-up 0.2s ease-out;
+}
+
+@keyframes detail-up {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+}
+
+.detail-body {
+  display: grid;
+  gap: 14px;
+  padding: 10px 16px 20px;
+}
+
+.grab {
+  justify-self: center;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+/* 1行目：左に曲名・アーティスト・ラベル、右にキーと×（一覧のカードと同じ並び） */
+.detail-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.detail-names {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+
+.detail-title {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.detail-artist {
+  color: var(--muted);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.detail-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.detail-head .key {
+  flex: none;
+}
+
+.detail-head .key-text {
+  font-size: 1.6rem;
+}
+
+.key-breakdown {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.detail-close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .detail-close:hover {
+    border-color: var(--accent);
+    background: var(--hover-bg);
+  }
+}
+
+.detail-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.detail-group {
+  display: grid;
+  gap: 6px;
+}
+
+.detail-group h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.detail-voice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.detail-voice b {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* 離れすぎの注記 */
+.detail-warn {
+  color: var(--warn);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.detail-none {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.detail-pitches {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.detail-pitches dt {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.detail-pitches dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.detail-extra {
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.detail-memo {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.detail-dates {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* 音域の図 */
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart text {
+  fill: var(--muted);
+  font-family: inherit;
+  font-size: 10px;
+  /* 声の端の縦線と重なっても読めるように、背景色で縁取る */
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.chart .row-label {
+  fill: var(--fg);
+  font-weight: 600;
+}
+
+.chart .voice-text {
+  fill: var(--accent);
+  font-weight: 600;
+}
+
+.chart .outside-text {
+  fill: var(--warn);
+  font-weight: 600;
+}
+
+.chart .roll-black {
+  fill: var(--roll-black);
+}
+
+.chart .voice-range {
+  fill: var(--voice-soft);
+  opacity: 0.5;
+}
+
+.chart .voice-edge {
+  stroke: var(--accent);
+  stroke-width: 1.2;
+}
+
+.chart .key-white {
+  fill: var(--key-white);
+  stroke: var(--border);
+  stroke-width: 0.8;
+}
+
+.chart .key-black {
+  fill: var(--key-black);
+}
+
+.chart .key-white.in-voice {
+  fill: var(--voice-soft);
+}
+
+.chart .key-black.in-voice {
+  fill: var(--accent);
+}
+
+.chart .bar-original {
+  fill: var(--bar-original);
+}
+
+.chart .bar-sung {
+  fill: var(--accent);
+}
+
+.chart .bar-outside {
+  fill: var(--warn);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+    animation: none !important;
   }
 }

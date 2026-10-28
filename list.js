@@ -1,7 +1,7 @@
 // 曲の一覧の処理（閲覧ページと管理画面で共用。DOM に依存しないので node --test で確かめる）
-// docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）
+// docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）・4.16.1（曲の詳細）
 
-import { MIN_MIDI, MAX_MIDI } from "./keycalc.js?v=97cb6c0e66";
+import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=d28465fd95";
 
 // ---- キーの表示 ----
 
@@ -193,6 +193,120 @@ export function formatOffset(offset) {
     return "";
   }
   return offset > 0 ? `（+${offset}）` : `（−${-offset}）`;
+}
+
+// ---- 曲の詳細（4.16.1） ----
+
+// 離れすぎの注記を出す基準（半音の数）
+const LOW_WARN_GAP = 5;
+const TOP_ROOM_GAP = 5;
+const PITCH_FIELDS = ["max_note", "min_note", "max_chest", "max_falsetto"];
+
+const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "0");
+const keyText = (key) => (key === 0 ? "原キー" : signed(key));
+const hasVoiceRange = (voice) => voice.max_note != null && voice.min_note != null;
+
+/** 実際に歌う高さへのずらし（キーにオクターブのずらしを足す。計算不能なら null） */
+export function keyShift({ key, octaveDown, octaveUp }) {
+  if (key == null) {
+    return null;
+  }
+  return key + (octaveDown ? -12 : octaveUp ? 12 : 0);
+}
+
+/** 曲の音（最高音・最低音・地声・裏声）を shift だけずらす。空の項目は空のまま */
+export function shiftNotes(song, shift) {
+  return Object.fromEntries(PITCH_FIELDS.map((field) => [field, song[field] == null ? null : song[field] + shift]));
+}
+
+/**
+ * 音域 { max_note, min_note } のうち、声の範囲から外れる区間（図で赤く塗る）。
+ * 片方の端が空なら、ある方の音1つで判定する。声の最高音か最低音が空なら判定しない。
+ */
+export function outsideVoice(range, voice) {
+  if (!hasVoiceRange(voice)) {
+    return [];
+  }
+  const low = range.min_note ?? range.max_note;
+  const high = range.max_note ?? range.min_note;
+  if (low == null) {
+    return [];
+  }
+  const parts = [];
+  if (low < voice.min_note) {
+    parts.push({ side: "low", from: low, to: Math.min(high, voice.min_note - 1), count: voice.min_note - low });
+  }
+  if (high > voice.max_note) {
+    parts.push({ side: "high", from: Math.max(low, voice.max_note + 1), to: high, count: high - voice.max_note });
+  }
+  return parts;
+}
+
+/** 離れすぎの注記（このキーで歌ったときの音域を声と比べる。声の最高音か最低音が空なら出さない） */
+export function rangeWarnings(sung, voice) {
+  if (!hasVoiceRange(voice)) {
+    return [];
+  }
+  const warnings = [];
+  if (sung.max_note != null && sung.max_note > voice.max_note) {
+    warnings.push(`最高音が声より${sung.max_note - voice.max_note}高い`);
+  }
+  if (sung.min_note != null && voice.min_note - sung.min_note >= LOW_WARN_GAP) {
+    warnings.push(`最低音が声より${voice.min_note - sung.min_note}低い`);
+  }
+  if (sung.max_note != null && voice.max_note - sung.max_note >= TOP_ROOM_GAP) {
+    warnings.push(`最高音まで${voice.max_note - sung.max_note}余裕がある`);
+  }
+  return warnings;
+}
+
+/** 図の横の範囲（出す音の一番低い音の3つ下から、一番高い音の3つ上まで。音がなければ null） */
+export function chartBounds(notes) {
+  const known = notes.filter((note) => note != null);
+  if (known.length === 0) {
+    return null;
+  }
+  return { lo: Math.min(...known) - 3, hi: Math.max(...known) + 3 };
+}
+
+/** キーの内訳（"原キー・微調整 −1"）。微調整がない・計算不能・キー指定なら null */
+export function keyBreakdown({ key, overridden }, keyAdjust) {
+  if (key == null || overridden || !keyAdjust) {
+    return null;
+  }
+  return `${keyText(key - keyAdjust)}・微調整 ${signed(keyAdjust)}`;
+}
+
+/** どの声で計算したか（"男性（最高音 +2）で計算"。調整している項目だけ添える） */
+export function voiceUsedText(name, offsets) {
+  const parts = [["最高音", offsets.max_note], ["最低音", offsets.min_note]]
+    .filter(([, offset]) => offset !== 0)
+    .map(([label, offset]) => `${label} ${signed(offset)}`);
+  return parts.length === 0 ? `${name}で計算` : `${name}（${parts.join("・")}）で計算`;
+}
+
+/** 音名（キーでずらして音高の範囲 21〜92 の外に出た音は "?"） */
+export function noteName(midi) {
+  return midi >= MIN_MIDI && midi <= MAX_MIDI ? midiToNote(midi) : "?";
+}
+
+/** 音域の文字（"lowD〜hiA"。片方だけならどちらの音かを書く。両方空なら null） */
+export function formatRange(min, max) {
+  if (min != null && max != null) {
+    return `${noteName(min)}〜${noteName(max)}`;
+  }
+  if (max != null) {
+    return `最高音 ${noteName(max)}`;
+  }
+  if (min != null) {
+    return `最低音 ${noteName(min)}`;
+  }
+  return null;
+}
+
+/** 日時（ISO 8601）の日付だけ */
+export function formatDay(iso) {
+  return iso.slice(0, 10);
 }
 
 // ---- ラベルの色 ----

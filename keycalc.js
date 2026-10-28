@@ -62,8 +62,8 @@ export function calcKey(voice, song, settings) {
   if (base == null) {
     return { key: null, octaveDown: false, octaveUp: false, overridden: false, outOfRange: false };
   }
-  // 4. 微調整を加える
-  const key = base.key + (song.key_adjust ?? 0);
+  // 4. ±1（半音）だけなら原キーにする。5. 微調整を加える（微調整は丸めない）
+  const key = (Math.abs(base.key) === 1 ? 0 : base.key) + (song.key_adjust ?? 0);
   return { key, octaveDown: base.octaveDown, octaveUp: base.octaveUp, overridden: false, outOfRange: isOutOfRange(key, settings) };
 }
 
