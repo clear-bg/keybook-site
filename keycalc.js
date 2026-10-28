@@ -84,7 +84,8 @@ function matchMax(voice, song, { key_range: keyRange, raise_if_room: raiseIfRoom
 
 /**
  * 最低音で合わせる声（4.4.1）：最高音が出ることを優先し、できれば最低音も出す。
- * オクターブ（そのまま・1つ上・1つ下）とキーの組み合わせから選ぶ。raise_if_room は使わない。
+ * オクターブ（そのまま・1つ上・1つ下）とキーの組み合わせから選び、声に top_margin があれば最高音を引き上げる。
+ * raise_if_room は使わない。
  */
 function matchMin(voice, song, { key_range: keyRange }) {
   if (song.min_note == null || voice.min_note == null) {
@@ -104,7 +105,7 @@ function matchMin(voice, song, { key_range: keyRange }) {
   for (const octave of [0, 1, -1]) {
     const key = keys.find((k) => fitsTop(octave * 12 + k) && fitsLow(octave * 12 + k));
     if (key !== undefined) {
-      return result(key, octave);
+      return result(raiseTop(voice, song, octave * 12, key, keyRange), octave);
     }
   }
   // b. 両方は無理：最高音を優先して、最高音にぴったり合わせる（届かなければ1オクターブ下、それでも届かなければ範囲外）
@@ -117,6 +118,19 @@ function matchMin(voice, song, { key_range: keyRange }) {
     return result(Math.min(room, keyRange), 0);
   }
   return result(room + 12, -1);
+}
+
+/**
+ * 最高音の引き上げ（4.4.1 の a'）：曲の最高音が「声の最高音 − top_margin」に届くまでキーを上げる。
+ * octave はオクターブのずらし（半音で 0・12・−12）。上げるだけで下げない。key_range で止める。
+ * top_margin か最高音が空なら上げない。
+ */
+function raiseTop(voice, song, octave, key, keyRange) {
+  if (voice.top_margin == null || voice.max_note == null || song.max_note == null) {
+    return key;
+  }
+  const room = voice.max_note - voice.top_margin - (song.max_note + octave + key);
+  return room > 0 ? Math.min(key + room, keyRange) : key;
 }
 
 /** キーがカラオケで変えられる範囲（±key_range）を超えているか */
