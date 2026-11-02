@@ -1,7 +1,7 @@
 // 曲の一覧の処理（閲覧ページと管理画面で共用。DOM に依存しないので node --test で確かめる）
 // docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）・4.16.1（曲の詳細）
 
-import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=3b0d174dac";
+import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=40b7b68bf0";
 
 // ---- キーの表示 ----
 
@@ -72,6 +72,50 @@ export function preselectedLabelIds(labels) {
 // ---- 並び替え ----
 
 const collator = new Intl.Collator("ja");
+
+// ---- アーティストの絞り込み ----
+
+/** 選んだアーティストのどれかの曲だけを返す（何も選ばなければすべて） */
+export function filterByArtists(songs, artists) {
+  return artists.length === 0 ? songs : songs.filter((song) => artists.includes(song.artist));
+}
+
+/**
+ * アーティストの一覧（読み順。読みがなければ名前）。曲数は counted（ラベルで絞り込んだ曲）で数え、
+ * 0 曲のアーティストは出さない。ただし選んでいるアーティストは 0 曲でも残す（外せるように）。
+ */
+export function artistOptions(songs, counted, selected) {
+  const artists = new Map();
+  for (const song of songs) {
+    if (!song.artist) {
+      continue;
+    }
+    const artist = artists.get(song.artist) ?? { name: song.artist, kana: "", count: 0 };
+    artist.kana ||= song.artist_kana || "";
+    artists.set(song.artist, artist);
+  }
+  for (const song of counted) {
+    const artist = artists.get(song.artist);
+    if (artist) {
+      artist.count += 1;
+    }
+  }
+  return [...artists.values()]
+    .filter((artist) => artist.count > 0 || selected.includes(artist.name))
+    .map((artist) => ({ ...artist, selected: selected.includes(artist.name) }))
+    .sort((a, b) => collator.compare(a.kana || a.name, b.kana || b.name) || collator.compare(a.name, b.name));
+}
+
+/** アーティストの一覧の検索：名前か読みに検索語が含まれるか（区別しないものは曲の検索と同じ） */
+export function matchesArtistSearch(artist, query) {
+  const q = normalizeForSearch(query);
+  return q === "" || [artist.name, artist.kana].some((text) => text && normalizeForSearch(text).includes(q));
+}
+
+/** 読み直したデータにないアーティストは選択から外す */
+export function keepKnownArtists(selected, songs) {
+  return selected.filter((name) => songs.some((song) => song.artist === name));
+}
 
 // 並び替えの項目と、最初にタップしたときの向き
 const SORTS = {

@@ -13,8 +13,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#F2B134">
   <!-- 読み込み先の v= の値は、ビルドで内容のハッシュに置き換わる（4.14） -->
-  <link rel="stylesheet" href="style.css?v=3b0d174dac">
-  <script type="module" src="app.js?v=3b0d174dac"></script>
+  <link rel="stylesheet" href="style.css?v=40b7b68bf0">
+  <script type="module" src="app.js?v=40b7b68bf0"></script>
 </head>
 <body>
   <!-- 声の選択と調整（4.3.1）。一度合わせれば足りるので、スクロールすると隠れる場所に置く -->
@@ -32,6 +32,8 @@
       <button type="button" id="search-clear" class="search-clear" aria-label="検索語を消す" hidden>×</button>
     </div>
     <div id="labels" class="filters" role="group" aria-label="ラベルで絞り込み"></div>
+    <!-- アーティストの絞り込み：ボタンで一覧のシートを開き、選んだアーティストは横に並べる（4.16） -->
+    <div id="artists" class="filters" role="group" aria-label="アーティストで絞り込み"></div>
     <div class="sort" role="group" aria-label="並び替え">
       <button type="button" data-sort="id">登録順</button>
       <button type="button" data-sort="title">曲名</button>
@@ -52,6 +54,24 @@
   <!-- 曲の詳細（4.16.1）。カードを押すと下から出る -->
   <dialog id="detail" class="detail" aria-labelledby="detail-title">
     <div id="detail-body" class="detail-body"></div>
+  </dialog>
+
+  <!-- アーティストの一覧（4.16）。曲の詳細と同じく下から出る -->
+  <dialog id="artist-sheet" class="detail artist-sheet" aria-labelledby="artist-sheet-title">
+    <div class="artist-sheet-head">
+      <div class="grab"></div>
+      <div class="artist-sheet-bar">
+        <h2 id="artist-sheet-title">アーティスト</h2>
+        <button type="button" id="artist-clear" class="artist-clear">すべて解除</button>
+        <!-- 開いたときに検索欄へフォーカスしない（スマホでキーボードが開くため） -->
+        <button type="button" id="artist-close" class="detail-close" aria-label="閉じる" autofocus>×</button>
+      </div>
+      <div class="search-box">
+        <input type="search" id="artist-search" placeholder="アーティストを検索" aria-label="アーティストを検索" autocomplete="off">
+        <button type="button" id="artist-search-clear" class="search-clear" aria-label="検索語を消す" hidden>×</button>
+      </div>
+    </div>
+    <ul id="artist-list" class="artist-list"></ul>
   </dialog>
 </body>
 </html>

@@ -193,7 +193,7 @@ input {
   position: relative;
 }
 
-#search {
+.search-box input[type="search"] {
   width: 100%;
   /* 右側はバツボタンの分を空ける */
   padding: 10px 44px 10px 12px;
@@ -204,14 +204,14 @@ input {
   font-size: 16px;
 }
 
-#search:focus {
+.search-box input[type="search"]:focus {
   border-color: var(--accent);
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 /* ブラウザ標準の消去ボタンは出さない（バツボタンと二重になるため） */
-#search::-webkit-search-cancel-button {
+.search-box input[type="search"]::-webkit-search-cancel-button {
   -webkit-appearance: none;
   appearance: none;
 }
@@ -313,6 +313,31 @@ input {
   border-color: var(--accent);
   color: var(--accent);
   font-weight: 600;
+}
+
+/* アーティストの一覧を開くボタン（選んだ数を丸で添える） */
+.filters .artist-open {
+  border-style: dashed;
+}
+
+.artist-open .badge {
+  display: inline-block;
+  min-width: 1.4em;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* 選んだアーティスト：押すと外す */
+.filters .remove {
+  margin-left: 6px;
+  opacity: 0.8;
 }
 
 .sort button[data-arrow]:not([data-arrow=""])::after {
@@ -772,6 +797,130 @@ footer p {
 
 .chart .bar-outside {
   fill: var(--warn);
+}
+
+/* ---- アーティストの一覧（下から出るシート。4.16） ---- */
+
+/* 高さを決めておき、検索で件数が変わってもシートの大きさを変えない。見出しと検索欄は上に残し、一覧だけスクロールする */
+.artist-sheet[open] {
+  display: flex;
+  flex-direction: column;
+  height: 80vh;
+  height: 80dvh;
+  overflow: hidden;
+}
+
+.artist-sheet-head {
+  display: grid;
+  gap: 10px;
+  padding: 10px 16px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.artist-sheet-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.artist-sheet-bar h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.artist-clear {
+  flex: none;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.artist-clear:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .artist-clear:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--hover-bg);
+  }
+}
+
+.artist-list {
+  flex: 1;
+  margin: 0;
+  padding: 0 16px 20px;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* 1行が押しやすい高さになるようにする */
+.artist-option {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--fg);
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .artist-option:hover {
+    background: var(--hover-bg);
+  }
+}
+
+.artist-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.artist-option .check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-radius: 5px;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.artist-option[aria-pressed="true"] .check {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.artist-option[aria-pressed="true"] .check::after {
+  content: "✓";
+}
+
+.artist-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.artist-count {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

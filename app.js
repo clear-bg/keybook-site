@@ -1,13 +1,14 @@
-// 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベルの絞り込み・並び替えをして表示する。
+// 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベルとアーティストの絞り込み・並び替えをして表示する。
 // カードを押すと曲の詳細を出す（4.16.1）
 
-import { calcKey, midiToNote } from "./keycalc.js?v=3b0d174dac";
+import { calcKey, midiToNote } from "./keycalc.js?v=40b7b68bf0";
 import {
   DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, matchesSearch, nextSort, preselectedLabelIds, sortSongs,
+  artistOptions, filterByArtists, keepKnownArtists, matchesArtistSearch,
   adjustVoice, adjustedVoice, canAdjust, formatOffset, isAdjusted, resetAdjust, restoreVoiceChoice, selectVoice,
   chartBounds, formatDay, formatRange, keyBreakdown, keyShift, noteName, outsideVoice, rangeWarnings, shiftNotes,
   voiceUsedText,
-} from "./list.js?v=3b0d174dac";
+} from "./list.js?v=40b7b68bf0";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 const VOICE_STORAGE_KEY = "keybook.voice";
@@ -18,6 +19,8 @@ const state = {
   data: null,
   query: "",
   labelIds: [],
+  // 選んだアーティストの名前（ラベルと同じく覚えさせず、開くたびに選んでいない状態から始める）
+  artists: [],
   sort: loadSort(),
   // 選んだ声と調整（4.3.1）。songs.json を読むまでは覚えていた値をそのまま持つ
   voice: loadVoiceChoice(),
@@ -87,7 +90,7 @@ async function load() {
   let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=3b0d174dac", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=40b7b68bf0", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
@@ -108,12 +111,17 @@ async function load() {
   state.voice = restoreVoiceChoice(state.voice, data.voices);
   // 読み直したときに消えたラベルは、絞り込みからも外す
   state.labelIds = state.labelIds.filter((id) => data.labels.some((label) => label.id === id));
+  state.artists = keepKnownArtists(state.artists, data.songs);
   $("updated").textContent = `${formatDate(data.generated_at)} 更新`;
   // 読み直して描き直しても、見ていた位置から動かさない
   const scrollY = window.scrollY;
   renderVoice();
   renderLabels();
+  renderArtists();
   render();
+  if (artistSheet.open) {
+    renderArtistList();
+  }
   window.scrollTo(0, scrollY);
   // 詳細を開いていれば新しいデータで描き直す（曲がなくなっていれば閉じる。4.16.1）
   if (state.detailId != null) {
@@ -153,6 +161,107 @@ function renderLabels() {
     }),
   );
 }
+
+/** アーティストの絞り込み：一覧を開くボタンと、選んだアーティスト（押すと外す）を並べる（4.16） */
+function renderArtists() {
+  $("artists").replaceChildren(
+    el(
+      "button",
+      { type: "button", className: "artist-open", "aria-haspopup": "dialog", onclick: openArtistSheet },
+      "アーティスト",
+      ...(state.artists.length > 0 ? [el("span", { className: "badge" }, String(state.artists.length))] : []),
+    ),
+    ...state.artists.map((name) =>
+      el(
+        "button",
+        { type: "button", className: "filter", "aria-pressed": "true", "aria-label": `${name} を外す`, onclick: () => toggleArtist(name) },
+        name,
+        el("span", { className: "remove", "aria-hidden": "true" }, "×"),
+      ),
+    ),
+  );
+}
+
+function toggleArtist(name) {
+  state.artists = state.artists.includes(name) ? state.artists.filter((a) => a !== name) : [...state.artists, name];
+  renderArtists();
+  render();
+}
+
+// ---- アーティストの一覧（下から出るシート。4.16） ----
+
+const artistSheet = $("artist-sheet");
+
+function openArtistSheet() {
+  $("artist-search").value = "";
+  $("artist-search-clear").hidden = true;
+  renderArtistList();
+  artistSheet.showModal();
+  document.documentElement.classList.add("detail-open");
+  $("artist-list").scrollTop = 0;
+}
+
+/** 一覧を描く。曲数はラベルで絞り込んだ曲で数え、0 曲のアーティストは出さない（選んでいるものは残す） */
+function renderArtistList() {
+  const { songs } = state.data;
+  const options = artistOptions(songs, filterByLabels(songs, state.labelIds), state.artists)
+    .filter((artist) => matchesArtistSearch(artist, $("artist-search").value));
+  $("artist-clear").disabled = state.artists.length === 0;
+  $("artist-list").replaceChildren(
+    ...options.map((artist) =>
+      el(
+        "li",
+        {},
+        el(
+          "button",
+          {
+            type: "button",
+            className: "artist-option",
+            "aria-pressed": String(artist.selected),
+            onclick: (event) => {
+              toggleArtist(artist.name);
+              // 一覧は描き直さず、押したものの状態だけ変える（スクロール位置を動かさない）
+              event.currentTarget.setAttribute("aria-pressed", String(state.artists.includes(artist.name)));
+              $("artist-clear").disabled = state.artists.length === 0;
+            },
+          },
+          el("span", { className: "check", "aria-hidden": "true" }),
+          el("span", { className: "artist-name" }, artist.name),
+          el("span", { className: "artist-count" }, `${artist.count} 曲`),
+        ),
+      ),
+    ),
+  );
+  if (options.length === 0) {
+    $("artist-list").append(el("li", { className: "empty" }, "該当するアーティストはありません"));
+  }
+}
+
+$("artist-close").addEventListener("click", () => artistSheet.close());
+
+$("artist-clear").addEventListener("click", () => {
+  state.artists = [];
+  renderArtists();
+  render();
+  renderArtistList();
+});
+
+$("artist-search").addEventListener("input", (event) => {
+  $("artist-search-clear").hidden = event.target.value === "";
+  renderArtistList();
+});
+
+artistSheet.addEventListener("close", () => {
+  document.documentElement.classList.remove("detail-open");
+  document.querySelector("#artists .artist-open")?.focus();
+});
+
+// シートの外側（暗い部分）を押したら閉じる
+artistSheet.addEventListener("click", (event) => {
+  if (event.target === artistSheet) {
+    artistSheet.close();
+  }
+});
 
 /** 声の選択と調整（4.16） */
 function renderVoice() {
@@ -230,7 +339,7 @@ function render() {
   const { data } = state;
   const labels = new Map(data.labels.map((label) => [label.id, label]));
   const found = data.songs.filter((song) => matchesSearch(song, state.query));
-  const songs = sortSongs(filterByLabels(found, state.labelIds), state.sort);
+  const songs = sortSongs(filterByArtists(filterByLabels(found, state.labelIds), state.artists), state.sort);
 
   renderSortButtons();
   $("count").textContent = songs.length === data.songs.length
@@ -574,12 +683,14 @@ $("search").addEventListener("input", (event) => {
 });
 
 // バツボタン：検索語を消し、続けて入力できるよう検索欄にフォーカスを戻す
-$("search-clear").addEventListener("click", () => {
-  const input = $("search");
-  input.value = "";
-  input.dispatchEvent(new Event("input"));
-  input.focus();
-});
+for (const [inputId, buttonId] of [["search", "search-clear"], ["artist-search", "artist-search-clear"]]) {
+  $(buttonId).addEventListener("click", () => {
+    const input = $(inputId);
+    input.value = "";
+    input.dispatchEvent(new Event("input"));
+    input.focus();
+  });
+}
 
 for (const button of document.querySelectorAll(".sort button")) {
   button.addEventListener("click", () => {
