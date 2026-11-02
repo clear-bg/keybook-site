@@ -189,9 +189,14 @@ input {
   border-bottom: 1px solid var(--border);
 }
 
+.search-box {
+  position: relative;
+}
+
 #search {
   width: 100%;
-  padding: 10px 12px;
+  /* 右側はバツボタンの分を空ける */
+  padding: 10px 44px 10px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -203,6 +208,42 @@ input {
   border-color: var(--accent);
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* ブラウザ標準の消去ボタンは出さない（バツボタンと二重になるため） */
+#search::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* バツボタン：検索語があるときだけ出す。押しやすいよう欄の高さいっぱいにする */
+.search-clear {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 44px;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.search-clear[hidden] {
+  display: none;
+}
+
+.search-clear:hover {
+  color: var(--fg);
+}
+
+.search-clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -4px;
+  border-radius: 8px;
 }
 
 .filters,
