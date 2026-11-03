@@ -315,6 +315,11 @@ input {
   font-weight: 600;
 }
 
+/* 性別のボタンのあとに間を空けて、アーティストと見分ける */
+.filters .gender + .artist-open {
+  margin-left: 6px;
+}
+
 /* アーティストの一覧を開くボタン（選んだ数を丸で添える） */
 .filters .artist-open {
   border-style: dashed;
@@ -598,6 +603,14 @@ footer p {
   color: var(--muted);
   font-size: 0.85rem;
   overflow-wrap: anywhere;
+}
+
+.detail-gender {
+  margin-left: 8px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.75rem;
 }
 
 .detail-chips {

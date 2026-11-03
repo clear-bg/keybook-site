@@ -1,14 +1,14 @@
-// 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベルとアーティストの絞り込み・並び替えをして表示する。
+// 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベル・性別・アーティストの絞り込み・並び替えをして表示する。
 // カードを押すと曲の詳細を出す（4.16.1）
 
-import { calcKey, midiToNote } from "./keycalc.js?v=40b7b68bf0";
+import { calcKey, midiToNote } from "./keycalc.js?v=96d48f54f5";
 import {
   DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, matchesSearch, nextSort, preselectedLabelIds, sortSongs,
-  artistOptions, filterByArtists, keepKnownArtists, matchesArtistSearch,
+  artistOptions, filterByArtists, keepKnownArtists, matchesArtistSearch, GENDERS, filterByGenders, genderName,
   adjustVoice, adjustedVoice, canAdjust, formatOffset, isAdjusted, resetAdjust, restoreVoiceChoice, selectVoice,
   chartBounds, formatDay, formatRange, keyBreakdown, keyShift, noteName, outsideVoice, rangeWarnings, shiftNotes,
   voiceUsedText,
-} from "./list.js?v=40b7b68bf0";
+} from "./list.js?v=96d48f54f5";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 const VOICE_STORAGE_KEY = "keybook.voice";
@@ -19,7 +19,8 @@ const state = {
   data: null,
   query: "",
   labelIds: [],
-  // 選んだアーティストの名前（ラベルと同じく覚えさせず、開くたびに選んでいない状態から始める）
+  // 選んだ性別とアーティストの名前（ラベルと同じく覚えさせず、開くたびに選んでいない状態から始める）
+  genders: [],
   artists: [],
   sort: loadSort(),
   // 選んだ声と調整（4.3.1）。songs.json を読むまでは覚えていた値をそのまま持つ
@@ -90,7 +91,7 @@ async function load() {
   let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=40b7b68bf0", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=96d48f54f5", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
@@ -162,9 +163,26 @@ function renderLabels() {
   );
 }
 
-/** アーティストの絞り込み：一覧を開くボタンと、選んだアーティスト（押すと外す）を並べる（4.16） */
+/** 性別とアーティストの絞り込み：性別のボタン、一覧を開くボタン、選んだアーティスト（押すと外す）を並べる（4.16） */
 function renderArtists() {
   $("artists").replaceChildren(
+    ...GENDERS.map((gender) => {
+      const pressed = state.genders.includes(gender.value);
+      return el(
+        "button",
+        {
+          type: "button",
+          className: "filter gender",
+          "aria-pressed": String(pressed),
+          onclick: () => {
+            state.genders = pressed ? state.genders.filter((g) => g !== gender.value) : [...state.genders, gender.value];
+            renderArtists();
+            render();
+          },
+        },
+        gender.name,
+      );
+    }),
     el(
       "button",
       { type: "button", className: "artist-open", "aria-haspopup": "dialog", onclick: openArtistSheet },
@@ -201,10 +219,11 @@ function openArtistSheet() {
   $("artist-list").scrollTop = 0;
 }
 
-/** 一覧を描く。曲数はラベルで絞り込んだ曲で数え、0 曲のアーティストは出さない（選んでいるものは残す） */
+/** 一覧を描く。曲数はラベル・性別で絞り込んだ曲で数え、0 曲のアーティストは出さない（選んでいるものは残す） */
 function renderArtistList() {
   const { songs } = state.data;
-  const options = artistOptions(songs, filterByLabels(songs, state.labelIds), state.artists)
+  const counted = filterByGenders(filterByLabels(songs, state.labelIds), state.genders);
+  const options = artistOptions(songs, counted, state.artists)
     .filter((artist) => matchesArtistSearch(artist, $("artist-search").value));
   $("artist-clear").disabled = state.artists.length === 0;
   $("artist-list").replaceChildren(
@@ -339,7 +358,8 @@ function render() {
   const { data } = state;
   const labels = new Map(data.labels.map((label) => [label.id, label]));
   const found = data.songs.filter((song) => matchesSearch(song, state.query));
-  const songs = sortSongs(filterByArtists(filterByLabels(found, state.labelIds), state.artists), state.sort);
+  const filtered = filterByArtists(filterByGenders(filterByLabels(found, state.labelIds), state.genders), state.artists);
+  const songs = sortSongs(filtered, state.sort);
 
   renderSortButtons();
   $("count").textContent = songs.length === data.songs.length
@@ -477,7 +497,15 @@ function renderDetail() {
         "div",
         { className: "detail-names" },
         el("h2", { id: "detail-title", className: "detail-title" }, song.title),
-        ...(song.artist ? [el("p", { className: "detail-artist" }, song.artist)] : []),
+        ...(song.artist
+          ? [el(
+              "p",
+              { className: "detail-artist" },
+              song.artist,
+              // アーティストの性別（未設定なら出さない）
+              ...(genderName(song.gender) ? [el("span", { className: "detail-gender" }, genderName(song.gender))] : []),
+            )]
+          : []),
         ...(songLabels.length > 0
           ? [el("p", { className: "detail-chips" },
             ...songLabels.map((label) => el("span", { className: "chip", style: labelStyle(label) }, label.name)))]
