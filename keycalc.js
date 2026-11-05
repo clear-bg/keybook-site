@@ -123,10 +123,13 @@ function matchMin(voice, song, { key_range: keyRange }) {
 /**
  * 最高音の引き上げ（4.4.1 の a'）：曲の最高音が「声の最高音 − top_margin」に届くまでキーを上げる。
  * octave はオクターブのずらし（半音で 0・12・−12）。上げるだけで下げない。key_range で止める。
- * top_margin か最高音が空なら上げない。
+ * top_margin か最高音が空なら上げない。女性の声で女性の曲も上げない（原曲が女性の声の高さなので）。
  */
 function raiseTop(voice, song, octave, key, keyRange) {
   if (voice.top_margin == null || voice.max_note == null || song.max_note == null) {
+    return key;
+  }
+  if (voice.gender === "female" && song.gender === "female") {
     return key;
   }
   const room = voice.max_note - voice.top_margin - (song.max_note + octave + key);
