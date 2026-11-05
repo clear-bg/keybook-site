@@ -1,7 +1,7 @@
 // 曲の一覧の処理（閲覧ページと管理画面で共用。DOM に依存しないので node --test で確かめる）
 // docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）・4.16.1（曲の詳細）
 
-import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=3bfb0e8c8b";
+import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=7cbf4a6356";
 
 // ---- キーの表示 ----
 
@@ -235,7 +235,7 @@ export function resetAdjust(choice) {
   return { ...choice, offsets: noOffsets() };
 }
 
-/** 調整したあとの声（最高音・最低音と、合わせる音・最高音の余裕・性別。選んでいなければ null） */
+/** 調整したあとの声（最高音・最低音と、合わせる音・最高音の余裕・性別・女性の曲の余裕。選んでいなければ null） */
 export function adjustedVoice(choice, voices) {
   const voice = findVoice(voices, choice);
   if (!voice) {
@@ -249,6 +249,8 @@ export function adjustedVoice(choice, voices) {
     top_margin: voice.top_margin ?? null,
     // 声の性別も元の声のまま（4.3.1。女性の声で女性の曲は引き上げない）
     gender: voice.gender ?? null,
+    // 女性の曲の余裕も元の声のまま（4.4.2）
+    female_margin: voice.female_margin ?? null,
   };
 }
 

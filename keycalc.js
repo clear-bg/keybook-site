@@ -45,7 +45,7 @@ export function midiToNote(midi) {
 
 /**
  * 原曲に対するキーを求める（4.4）。
- * 声の match_by が "min" なら最低音で、それ以外は最高音で合わせる（4.4.1）。
+ * 声の match_by が "min" なら最低音で、それ以外は最高音で合わせる（4.4.1）。男性の声で女性の曲は 4.4.2。
  * voice・song・settings はエクスポート形式（4.8）と同じ項目名で受け取る。
  * @returns {{ key: number|null, octaveDown: boolean, octaveUp: boolean, overridden: boolean, outOfRange: boolean }}
  *   key が null なら計算不能（画面では「?」と表示する）
@@ -57,22 +57,37 @@ export function calcKey(voice, song, settings) {
     const key = song.key_override;
     return { key, octaveDown: false, octaveUp: false, overridden: true, outOfRange: isOutOfRange(key, settings) };
   }
+  // 男性の声で女性の曲（4.4.2。最高音で合わせる声だけ）
+  const maleForFemale = voice.match_by !== "min" && isMaleForFemale(voice, song);
   // 2〜3. 合わせる音で、微調整の前のキーを決める（計算できなければ null）
-  const base = voice.match_by === "min" ? matchMin(voice, song, settings) : matchMax(voice, song, settings);
+  const base = voice.match_by === "min"
+    ? matchMin(voice, song, settings)
+    : matchMax(voice, song, settings, maleForFemale ? (voice.female_margin ?? 0) : 0);
   if (base == null) {
     return { key: null, octaveDown: false, octaveUp: false, overridden: false, outOfRange: false };
   }
   // 4. ±1（半音）だけなら原キーにする。5. 微調整を加える（微調整は丸めない）
-  const key = (Math.abs(base.key) === 1 ? 0 : base.key) + (song.key_adjust ?? 0);
-  return { key, octaveDown: base.octaveDown, octaveUp: base.octaveUp, overridden: false, outOfRange: isOutOfRange(key, settings) };
+  let key = (Math.abs(base.key) === 1 ? 0 : base.key) + (song.key_adjust ?? 0);
+  let octaveDown = base.octaveDown;
+  // 6.（4.4.2）同じ高さの1オクターブ下で範囲に収まるなら、そちらの言い方にする（伴奏が下がりすぎないように）
+  if (maleForFemale && !octaveDown && !base.octaveUp && key < 0 && Math.abs(key + 12) <= settings.key_range) {
+    key += 12;
+    octaveDown = true;
+  }
+  return { key, octaveDown, octaveUp: base.octaveUp, overridden: false, outOfRange: isOutOfRange(key, settings) };
 }
 
-/** 最高音で合わせる（4.4 の 2・3） */
-function matchMax(voice, song, { key_range: keyRange, raise_if_room: raiseIfRoom }) {
+/** 声の性別が男性で、曲の性別が女性か（4.4.2） */
+function isMaleForFemale(voice, song) {
+  return voice.gender === "male" && song.gender === "female";
+}
+
+/** 最高音で合わせる（4.4 の 2・3）。margin は歌う最高音を声の最高音より下げる分（4.4.2 の female_margin） */
+function matchMax(voice, song, { key_range: keyRange, raise_if_room: raiseIfRoom }, margin = 0) {
   if (song.max_note == null || voice.max_note == null) {
     return null;
   }
-  const d = voice.max_note - song.max_note;
+  const d = voice.max_note - margin - song.max_note;
   if (d >= 0) {
     return { key: raiseIfRoom ? Math.min(d, keyRange) : 0, octaveDown: false, octaveUp: false };
   }
