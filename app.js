@@ -1,14 +1,14 @@
 // 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベル・性別・アーティストの絞り込み・並び替えをして表示する。
 // カードを押すと曲の詳細を出す（4.16.1）
 
-import { calcKey, midiToNote } from "./keycalc.js?v=c18605c185";
+import { calcKey, midiToNote } from "./keycalc.js?v=8e203d2f5b";
 import {
   DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, nextSort, preselectedLabelIds, sortSongs,
   artistOptions, keepKnownArtists, matchesArtistSearch, GENDERS, genderName,
   adjustVoice, adjustedVoice, canAdjust, formatOffset, isAdjusted, resetAdjust, restoreVoiceChoice, selectVoice,
   chartBounds, formatDay, formatRange, keyBreakdown, keyShift, noteName, outsideVoice, rangeWarnings, shiftNotes,
   voiceUsedText, filterSongs, sheetDragOffset, sheetDragResult, DEFAULT_ARTIST_SORT, nextArtistSort, isArtistSortKey, artistSortValue,
-} from "./list.js?v=c18605c185";
+} from "./list.js?v=8e203d2f5b";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 const ARTIST_SORT_STORAGE_KEY = "keybook.artistSort";
@@ -18,9 +18,14 @@ const $ = (id) => document.getElementById(id);
 
 // 最後の操作がキーボードか（指・マウスなら false）。シートを閉じたあとに開いたボタンへフォーカスを戻すのは、
 // キーボードで操作しているときだけにする（指で閉じたときに、戻したボタンの周りに枠が出ないように。Issue #17）
+// ページ全体にも印（html の keyboard-input）を付け、指で開いたシートの × に枠を出さないのに使う（style.css）
 let lastInputWasKeyboard = false;
-document.addEventListener("keydown", () => { lastInputWasKeyboard = true; }, true);
-document.addEventListener("pointerdown", () => { lastInputWasKeyboard = false; }, true);
+function setKeyboardInput(value) {
+  lastInputWasKeyboard = value;
+  document.documentElement.classList.toggle("keyboard-input", value);
+}
+document.addEventListener("keydown", () => setKeyboardInput(true), true);
+document.addEventListener("pointerdown", () => setKeyboardInput(false), true);
 
 /**
  * シートを閉じたあとのフォーカス。キーボードなら target（開いたボタンなど）に移す。
@@ -136,7 +141,7 @@ async function load() {
   let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=c18605c185", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=8e203d2f5b", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }

@@ -717,6 +717,12 @@ footer p {
   }
 }
 
+/* シートを開くと、ブラウザが × にフォーカスを移す。指・マウスで操作しているときは枠を出さない
+   （キーボードで操作しているときは出す。Issue #17） */
+:root:not(.keyboard-input) .detail-close:focus-visible {
+  outline: none;
+}
+
 .detail-close:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
