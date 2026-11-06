@@ -1003,7 +1003,8 @@ footer p {
   display: grid;
   gap: 8px;
   padding: 10px 16px;
-  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  /* ボタンが画面の下端に寄りすぎないよう、下に余白を取って少し上に置く（押しやすくするため） */
+  padding-bottom: calc(28px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
   background: var(--surface);
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.12);
