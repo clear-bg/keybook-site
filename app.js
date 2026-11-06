@@ -1,14 +1,14 @@
 // 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベル・性別・アーティストの絞り込み・並び替えをして表示する。
 // カードを押すと曲の詳細を出す（4.16.1）
 
-import { calcKey, midiToNote } from "./keycalc.js?v=c4352030b3";
+import { calcKey, midiToNote } from "./keycalc.js?v=70d3955178";
 import {
   DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, nextSort, preselectedLabelIds, sortSongs,
   artistOptions, keepKnownArtists, matchesArtistSearch, GENDERS, genderName,
   adjustVoice, adjustedVoice, canAdjust, formatOffset, isAdjusted, resetAdjust, restoreVoiceChoice, selectVoice,
   chartBounds, formatDay, formatRange, keyBreakdown, keyShift, noteName, outsideVoice, rangeWarnings, shiftNotes,
-  voiceUsedText, filterSongs, DEFAULT_ARTIST_SORT, nextArtistSort, isArtistSortKey, artistSortValue,
-} from "./list.js?v=c4352030b3";
+  voiceUsedText, filterSongs, sheetDragOffset, sheetDragResult, DEFAULT_ARTIST_SORT, nextArtistSort, isArtistSortKey, artistSortValue,
+} from "./list.js?v=70d3955178";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 const ARTIST_SORT_STORAGE_KEY = "keybook.artistSort";
@@ -118,7 +118,7 @@ async function load() {
   let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=c4352030b3", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=70d3955178", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
@@ -673,6 +673,88 @@ detail.addEventListener("click", (event) => {
     closeDetail();
   }
 });
+
+// ---- シートのつまみを下に引いて閉じる（Issue #17） ----
+
+// 引っ張れる場所：つまみと見出しの行。ボタン・入力欄の上から始めたときは引っ張らない（押せるように）
+enableSheetDrag(detail, ".grab, .detail-head");
+// アーティストのシートは、引いて閉じたときも何も反映しない（キャンセルと同じ。#14）
+enableSheetDrag(artistSheet, ".grab, .artist-sheet-bar");
+
+const SHEET_SLIDE_MS = 180;
+
+/** 引いている間はシートを指について下げ、離したときに閉じるか元に戻すかを決める */
+function enableSheetDrag(sheet, handleSelector) {
+  let drag = null;
+  sheet.addEventListener("pointerdown", (event) => {
+    const handle = event.target.closest(handleSelector);
+    if (event.button !== 0 || !handle || event.target.closest("button, input, select, textarea, a, label")) {
+      return;
+    }
+    drag = { id: event.pointerId, startY: event.clientY, lastY: event.clientY, lastTime: event.timeStamp, velocity: 0 };
+    try {
+      // 指がつまみの外に出ても動きを受け取り続ける
+      handle.setPointerCapture(event.pointerId);
+    } catch {
+      // 受け取れなくても、シートの中で動かしている間は動く
+    }
+    sheet.classList.add("dragging");
+    sheet.style.transition = "none";
+  });
+  sheet.addEventListener("pointermove", (event) => {
+    if (!drag || event.pointerId !== drag.id) {
+      return;
+    }
+    const elapsed = event.timeStamp - drag.lastTime;
+    if (elapsed > 0) {
+      drag.velocity = (event.clientY - drag.lastY) / elapsed;
+    }
+    drag.lastY = event.clientY;
+    drag.lastTime = event.timeStamp;
+    sheet.style.transform = `translateY(${sheetDragOffset(event.clientY - drag.startY)}px)`;
+  });
+  const end = (event) => {
+    if (!drag || event.pointerId !== drag.id) {
+      return;
+    }
+    // 止めてから離したときは払ったことにしない
+    const velocity = event.timeStamp - drag.lastTime > 100 ? 0 : drag.velocity;
+    const result = event.type === "pointercancel"
+      ? "back"
+      : sheetDragResult({ dy: drag.lastY - drag.startY, height: sheet.offsetHeight, velocity });
+    drag = null;
+    sheet.classList.remove("dragging");
+    if (result === "close") {
+      slideSheetOut(sheet);
+    } else {
+      sheet.style.transition = `transform ${SHEET_SLIDE_MS}ms ease-out`;
+      sheet.style.transform = "";
+      setTimeout(() => { sheet.style.transition = ""; }, SHEET_SLIDE_MS);
+    }
+  };
+  sheet.addEventListener("pointerup", end);
+  sheet.addEventListener("pointercancel", end);
+  // 閉じたら、次に開いたときのために位置を戻す
+  sheet.addEventListener("close", () => {
+    sheet.style.transform = "";
+    sheet.style.transition = "";
+  });
+}
+
+/** 下に抜けてから閉じる（動きを減らす設定ならすぐ閉じる） */
+function slideSheetOut(sheet) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    sheet.close();
+    return;
+  }
+  sheet.style.transition = `transform ${SHEET_SLIDE_MS}ms ease-in`;
+  sheet.style.transform = "translateY(100%)";
+  setTimeout(() => {
+    if (sheet.open) {
+      sheet.close();
+    }
+  }, SHEET_SLIDE_MS);
+}
 
 function renderDetail() {
   const { data } = state;

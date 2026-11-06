@@ -609,11 +609,37 @@ footer p {
 }
 
 .grab {
+  position: relative;
   justify-self: center;
   width: 40px;
   height: 4px;
   border-radius: 2px;
   background: var(--border);
+  transition: background-color 0.15s;
+}
+
+/* つまみは小さいので、見た目は変えずに押せる範囲だけ広げる（Issue #17） */
+.grab::before {
+  content: "";
+  position: absolute;
+  inset: -12px -60px;
+}
+
+/* 引っ張れる場所（つまみと見出しの行）では、ブラウザのスクロールを止めて指の動きをシートに使う */
+.grab,
+.detail-head,
+.artist-sheet-bar {
+  touch-action: none;
+}
+
+/* 引いている間は、つまみを少し濃くし、文字が選ばれないようにする */
+.detail.dragging {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.detail.dragging .grab {
+  background: var(--muted);
 }
 
 /* 1行目：左に曲名・アーティスト・ラベル、右にキーと×（一覧のカードと同じ並び） */

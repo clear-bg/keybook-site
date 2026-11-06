@@ -1,7 +1,7 @@
 // 曲の一覧の処理（閲覧ページと管理画面で共用。DOM に依存しないので node --test で確かめる）
 // docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）・4.16.1（曲の詳細）
 
-import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=c4352030b3";
+import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=70d3955178";
 
 // ---- キーの表示 ----
 
@@ -457,4 +457,27 @@ export function textColorFor(hex) {
   const luminance = 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
   // 白・黒それぞれとのコントラストが高いほうを選ぶ
   return (luminance + 0.05) / 0.05 > 1.05 / (luminance + 0.05) ? "#000000" : "#ffffff";
+}
+
+// ---- 下から出るシートを、つまみを引いて閉じる（Issue #17） ----
+
+// 閉じるのに下げる距離（px。シートの高さの 1/4 のほうが小さければそちら）と、払ったとみなす速さ（px/ms）と距離
+const SHEET_CLOSE_DISTANCE = 120;
+const SHEET_FLICK_VELOCITY = 0.5;
+const SHEET_FLICK_DISTANCE = 24;
+
+/** 引いている間にシートを下げる量（上には動かさない） */
+export function sheetDragOffset(dy) {
+  return Math.max(0, dy);
+}
+
+/** 指を離したときに閉じるか戻すか。dy は下げた距離、velocity は離す直前の下向きの速さ（px/ms） */
+export function sheetDragResult({ dy, height, velocity }) {
+  if (dy > 0 && dy >= Math.min(SHEET_CLOSE_DISTANCE, height / 4)) {
+    return "close";
+  }
+  if (dy >= SHEET_FLICK_DISTANCE && velocity >= SHEET_FLICK_VELOCITY) {
+    return "close";
+  }
+  return "back";
 }
