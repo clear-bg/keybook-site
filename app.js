@@ -1,14 +1,14 @@
 // 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベル・性別・アーティストの絞り込み・並び替えをして表示する。
 // カードを押すと曲の詳細を出す（4.16.1）
 
-import { calcKey, midiToNote } from "./keycalc.js?v=4bf13fc7c0";
+import { calcKey, midiToNote } from "./keycalc.js?v=264fb8763e";
 import {
   DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, matchesSearch, nextSort, preselectedLabelIds, sortSongs,
   artistOptions, filterByArtists, keepKnownArtists, matchesArtistSearch, GENDERS, filterByGenders, genderName,
   adjustVoice, adjustedVoice, canAdjust, formatOffset, isAdjusted, resetAdjust, restoreVoiceChoice, selectVoice,
   chartBounds, formatDay, formatRange, keyBreakdown, keyShift, noteName, outsideVoice, rangeWarnings, shiftNotes,
   voiceUsedText,
-} from "./list.js?v=4bf13fc7c0";
+} from "./list.js?v=264fb8763e";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 const VOICE_STORAGE_KEY = "keybook.voice";
@@ -91,7 +91,7 @@ async function load() {
   let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=4bf13fc7c0", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=264fb8763e", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
