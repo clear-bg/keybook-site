@@ -13,8 +13,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#F2B134">
   <!-- 読み込み先の v= の値は、ビルドで内容のハッシュに置き換わる（4.14） -->
-  <link rel="stylesheet" href="style.css?v=264fb8763e">
-  <script type="module" src="app.js?v=264fb8763e"></script>
+  <link rel="stylesheet" href="style.css?v=8ab44c04db">
+  <script type="module" src="app.js?v=8ab44c04db"></script>
 </head>
 <body>
   <!-- 声の選択と調整（4.3.1）。一度合わせれば足りるので、スクロールすると隠れる場所に置く -->
@@ -39,7 +39,7 @@
     <!-- 並び替え：絞り込みと見分けられるよう、見出しを付けて枠のない文字のタブにする（4.16） -->
     <div class="sort-row">
       <span class="sort-heading" aria-hidden="true">⇅ 並び替え</span>
-      <div class="sort" role="group" aria-label="並び替え">
+      <div id="sort" class="sort" role="group" aria-label="並び替え">
         <button type="button" data-sort="id">登録順</button>
         <button type="button" data-sort="title">曲名</button>
         <button type="button" data-sort="artist">アーティスト名</button>
@@ -67,7 +67,7 @@
     <div class="artist-sheet-head">
       <div class="grab"></div>
       <div class="artist-sheet-bar">
-        <h2 id="artist-sheet-title">アーティスト</h2>
+        <h2 id="artist-sheet-title">アーティストで絞り込み</h2>
         <button type="button" id="artist-clear" class="artist-clear">すべて解除</button>
         <!-- 開いたときに検索欄へフォーカスしない（スマホでキーボードが開くため） -->
         <button type="button" id="artist-close" class="detail-close" aria-label="閉じる" autofocus>×</button>
@@ -76,8 +76,21 @@
         <input type="search" id="artist-search" placeholder="アーティストを検索" aria-label="アーティストを検索" autocomplete="off">
         <button type="button" id="artist-search-clear" class="search-clear" aria-label="検索語を消す" hidden>×</button>
       </div>
+      <!-- シートの性別・ラベルは一覧だけを絞る（曲の一覧には効かない）。開くたびにホーム画面の選択から始める（Issue #14） -->
+      <div id="artist-genders" class="filters" role="group" aria-label="アーティストの一覧を性別で絞り込み"></div>
+      <div id="artist-labels" class="filters" role="group" aria-label="アーティストの一覧をラベルで絞り込み"></div>
+      <label class="artist-reflect">
+        <input type="checkbox" id="artist-reflect">
+        閉じるときにホーム画面のラベル・性別にも反映する
+      </label>
+      <div class="sort-row">
+        <span class="sort-heading" aria-hidden="true">⇅ 並び替え</span>
+        <div id="artist-sort" class="sort" role="group" aria-label="アーティストの並び替え"></div>
+      </div>
     </div>
     <ul id="artist-list" class="artist-list"></ul>
+    <!-- 選んでいるアーティスト：押すと外す。選んでいないときも行を残す（一覧が動かないように） -->
+    <div id="artist-picked" class="filters artist-picked" role="group" aria-label="選んでいるアーティスト"></div>
   </dialog>
 </body>
 </html>

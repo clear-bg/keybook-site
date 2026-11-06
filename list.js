@@ -1,7 +1,7 @@
 // 曲の一覧の処理（閲覧ページと管理画面で共用。DOM に依存しないので node --test で確かめる）
 // docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）・4.16.1（曲の詳細）
 
-import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=264fb8763e";
+import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=8ab44c04db";
 
 // ---- キーの表示 ----
 
@@ -80,30 +80,87 @@ export function filterByArtists(songs, artists) {
   return artists.length === 0 ? songs : songs.filter((song) => artists.includes(song.artist));
 }
 
+// アーティストの一覧の並び替えの項目と、最初にタップしたときの向き（Issue #14）。value が空のものは向きによらず最後
+const ARTIST_SORTS = {
+  count: { desc: true, value: (artist) => artist.count },
+  artist: { desc: false, value: null },
+  latest: { desc: true, value: (artist) => artist.latest_id },
+  max_note: { desc: true, value: (artist) => artist.max_note },
+};
+
+export const DEFAULT_ARTIST_SORT = { key: "count", desc: true };
+
+/** 読み順（読みがなければ名前。読みが同じなら名前） */
+const compareArtistKana = (a, b) => collator.compare(a.kana || a.name, b.kana || b.name) || collator.compare(a.name, b.name);
+
 /**
- * アーティストの一覧（読み順。読みがなければ名前）。曲数は counted（ラベルで絞り込んだ曲）で数え、
- * 0 曲のアーティストは出さない。ただし選んでいるアーティストは 0 曲でも残す（外せるように）。
+ * アーティストの一覧。曲数・一番高い最高音・一番新しい曲は counted（ラベルで絞り込んだ曲）で決め、
+ * 0 曲のアーティストは出さない。genders を選ぶと、counted の中にその性別のどれかの曲があるアーティストだけにする
+ * （曲数は性別では減らさない。null は未設定）。選んでいるアーティストはどちらでも残す（外せるように）。
+ * 並びは sort（省略すると読み順）。同じ値なら読み順で、ここは向きによらない。
  */
-export function artistOptions(songs, counted, selected) {
+export function artistOptions(songs, counted, selected, { genders = [], sort = { key: "artist", desc: false } } = {}) {
   const artists = new Map();
   for (const song of songs) {
     if (!song.artist) {
       continue;
     }
-    const artist = artists.get(song.artist) ?? { name: song.artist, kana: "", count: 0 };
+    const artist = artists.get(song.artist)
+      ?? { name: song.artist, kana: "", count: 0, max_note: null, latest_id: null, latest_at: null, genders: new Set() };
     artist.kana ||= song.artist_kana || "";
     artists.set(song.artist, artist);
   }
   for (const song of counted) {
     const artist = artists.get(song.artist);
-    if (artist) {
-      artist.count += 1;
+    if (!artist) {
+      continue;
+    }
+    artist.count += 1;
+    artist.genders.add(song.gender ?? null);
+    if (song.max_note != null && (artist.max_note == null || song.max_note > artist.max_note)) {
+      artist.max_note = song.max_note;
+    }
+    if (artist.latest_id == null || song.id > artist.latest_id) {
+      artist.latest_id = song.id;
+      artist.latest_at = song.created_at ?? null;
     }
   }
+  const { value } = ARTIST_SORTS[sort.key];
+  const direction = sort.desc ? -1 : 1;
   return [...artists.values()]
-    .filter((artist) => artist.count > 0 || selected.includes(artist.name))
-    .map((artist) => ({ ...artist, selected: selected.includes(artist.name) }))
-    .sort((a, b) => collator.compare(a.kana || a.name, b.kana || b.name) || collator.compare(a.name, b.name));
+    .filter((artist) => selected.includes(artist.name)
+      || (artist.count > 0 && (genders.length === 0 || genders.some((gender) => artist.genders.has(gender)))))
+    .map(({ genders: _, ...artist }) => ({ ...artist, selected: selected.includes(artist.name) }))
+    .sort((a, b) => {
+      if (value == null) {
+        return compareArtistKana(a, b) * direction;
+      }
+      const [va, vb] = [value(a), value(b)];
+      if ((va == null) !== (vb == null)) {
+        return va == null ? 1 : -1;
+      }
+      return (va == null ? 0 : (va - vb) * direction) || compareArtistKana(a, b);
+    });
+}
+
+/** アーティストの一覧の並びを押したあと。同じ項目なら逆順、別の項目ならその項目の最初の向き */
+export function nextArtistSort(current, key) {
+  return current.key === key ? { key, desc: !current.desc } : { key, desc: ARTIST_SORTS[key].desc };
+}
+
+export function isArtistSortKey(key) {
+  return Object.hasOwn(ARTIST_SORTS, key);
+}
+
+/** 並びの値として一覧に添える文字：登録順は「11/3 追加」、最高音は音名。ほかの並びと値が空なら "" */
+export function artistSortValue(artist, key) {
+  if (key === "latest" && artist.latest_at) {
+    return `${Number(artist.latest_at.slice(5, 7))}/${Number(artist.latest_at.slice(8, 10))} 追加`;
+  }
+  if (key === "max_note" && artist.max_note != null) {
+    return noteName(artist.max_note);
+  }
+  return "";
 }
 
 /** アーティストの一覧の検索：名前か読みに検索語が含まれるか（区別しないものは曲の検索と同じ） */

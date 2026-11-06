@@ -1,16 +1,17 @@
 // 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベル・性別・アーティストの絞り込み・並び替えをして表示する。
 // カードを押すと曲の詳細を出す（4.16.1）
 
-import { calcKey, midiToNote } from "./keycalc.js?v=264fb8763e";
+import { calcKey, midiToNote } from "./keycalc.js?v=8ab44c04db";
 import {
   DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, matchesSearch, nextSort, preselectedLabelIds, sortSongs,
   artistOptions, filterByArtists, keepKnownArtists, matchesArtistSearch, GENDERS, filterByGenders, genderName,
   adjustVoice, adjustedVoice, canAdjust, formatOffset, isAdjusted, resetAdjust, restoreVoiceChoice, selectVoice,
   chartBounds, formatDay, formatRange, keyBreakdown, keyShift, noteName, outsideVoice, rangeWarnings, shiftNotes,
-  voiceUsedText,
-} from "./list.js?v=264fb8763e";
+  voiceUsedText, DEFAULT_ARTIST_SORT, nextArtistSort, isArtistSortKey, artistSortValue,
+} from "./list.js?v=8ab44c04db";
 
 const SORT_STORAGE_KEY = "keybook.sort";
+const ARTIST_SORT_STORAGE_KEY = "keybook.artistSort";
 const VOICE_STORAGE_KEY = "keybook.voice";
 
 const $ = (id) => document.getElementById(id);
@@ -23,6 +24,10 @@ const state = {
   genders: [],
   artists: [],
   sort: loadSort(),
+  // アーティストの一覧の性別・ラベル（一覧だけを絞る。開くたびにホーム画面の選択から始める）と並び順（覚えさせる）
+  artistGenders: [],
+  artistLabelIds: [],
+  artistSort: loadArtistSort(),
   // 選んだ声と調整（4.3.1）。songs.json を読むまでは覚えていた値をそのまま持つ
   voice: loadVoiceChoice(),
   // 詳細を開いている曲の ID（開いていなければ null）
@@ -59,6 +64,26 @@ function loadSort() {
   return DEFAULT_SORT;
 }
 
+function loadArtistSort() {
+  try {
+    const sort = JSON.parse(localStorage.getItem(ARTIST_SORT_STORAGE_KEY));
+    if (sort && isArtistSortKey(sort.key) && typeof sort.desc === "boolean") {
+      return sort;
+    }
+  } catch {
+    // 使えないときは初期値
+  }
+  return DEFAULT_ARTIST_SORT;
+}
+
+function saveArtistSort() {
+  try {
+    localStorage.setItem(ARTIST_SORT_STORAGE_KEY, JSON.stringify(state.artistSort));
+  } catch {
+    // 覚えられなくても表示には困らない
+  }
+}
+
 function saveSort() {
   try {
     localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(state.sort));
@@ -91,7 +116,7 @@ async function load() {
   let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=264fb8763e", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=8ab44c04db", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
@@ -112,6 +137,7 @@ async function load() {
   state.voice = restoreVoiceChoice(state.voice, data.voices);
   // 読み直したときに消えたラベルは、絞り込みからも外す
   state.labelIds = state.labelIds.filter((id) => data.labels.some((label) => label.id === id));
+  state.artistLabelIds = state.artistLabelIds.filter((id) => data.labels.some((label) => label.id === id));
   state.artists = keepKnownArtists(state.artists, data.songs);
   $("updated").textContent = `${formatDate(data.generated_at)} 更新`;
   // 読み直して描き直しても、見ていた位置から動かさない
@@ -122,6 +148,7 @@ async function load() {
   renderArtists();
   render();
   if (artistSheet.open) {
+    renderArtistLabels();
     renderArtistList();
   }
   window.scrollTo(0, scrollY);
@@ -220,19 +247,140 @@ const artistSheet = $("artist-sheet");
 function openArtistSheet() {
   $("artist-search").value = "";
   $("artist-search-clear").hidden = true;
+  state.artistGenders = [...state.genders];
+  state.artistLabelIds = [...state.labelIds];
+  $("artist-reflect").checked = false;
+  renderArtistGenders();
+  renderArtistLabels();
+  renderArtistSort();
   renderArtistList();
   artistSheet.showModal();
   document.documentElement.classList.add("detail-open");
   $("artist-list").scrollTop = 0;
 }
 
-/** 一覧を描く。曲数はラベル・性別で絞り込んだ曲で数え、0 曲のアーティストは出さない（選んでいるものは残す） */
+/** シートの性別：一覧だけを絞る（Issue #14） */
+function renderArtistGenders() {
+  $("artist-genders").replaceChildren(
+    ...GENDERS.map((gender) => {
+      const pressed = state.artistGenders.includes(gender.value);
+      return el(
+        "button",
+        {
+          type: "button",
+          "aria-pressed": String(pressed),
+          onclick: () => {
+            state.artistGenders = pressed
+              ? state.artistGenders.filter((g) => g !== gender.value)
+              : [...state.artistGenders, gender.value];
+            renderArtistGenders();
+            renderArtistList();
+          },
+        },
+        gender.name,
+      );
+    }),
+  );
+}
+
+/** シートのラベル：一覧だけを絞る（選んだラベルがすべて付いている曲。Issue #14） */
+function renderArtistLabels() {
+  const labels = [...state.data.labels].sort((a, b) => a.order - b.order);
+  $("artist-labels").hidden = labels.length === 0;
+  $("artist-labels").replaceChildren(
+    ...labels.map((label) => {
+      const pressed = state.artistLabelIds.includes(label.id);
+      return el(
+        "button",
+        {
+          type: "button",
+          className: "filter",
+          "aria-pressed": String(pressed),
+          style: pressed ? labelStyle(label) : "",
+          onclick: () => {
+            state.artistLabelIds = pressed
+              ? state.artistLabelIds.filter((id) => id !== label.id)
+              : [...state.artistLabelIds, label.id];
+            renderArtistLabels();
+            renderArtistList();
+          },
+        },
+        el("span", { className: "dot", style: label.color ? `background: ${label.color}` : "" }),
+        label.name,
+      );
+    }),
+  );
+}
+
+const ARTIST_SORT_NAMES = { count: "曲数", artist: "アーティスト名", latest: "登録順", max_note: "最高音" };
+
+/** シートの並び替え（曲の並び替えと同じ見た目。Issue #14） */
+function renderArtistSort() {
+  $("artist-sort").replaceChildren(
+    ...Object.entries(ARTIST_SORT_NAMES).map(([key, name]) => {
+      const active = state.artistSort.key === key;
+      const button = el(
+        "button",
+        {
+          type: "button",
+          "aria-pressed": String(active),
+          onclick: () => {
+            state.artistSort = nextArtistSort(state.artistSort, key);
+            saveArtistSort();
+            renderArtistSort();
+            renderArtistList();
+            $("artist-list").scrollTop = 0;
+          },
+        },
+        name,
+      );
+      button.dataset.arrow = active ? (state.artistSort.desc ? "▼" : "▲") : "";
+      return button;
+    }),
+  );
+}
+
+/** 選んでいるアーティスト（シートの一番下）。押すと外す。一覧は描き直さず、そのアーティストの行の状態だけ変える */
+function renderArtistPicked() {
+  $("artist-clear").disabled = state.artists.length === 0;
+  if (state.artists.length === 0) {
+    $("artist-picked").replaceChildren(el("span", { className: "artist-picked-empty" }, "選んでいるアーティストはありません"));
+    return;
+  }
+  $("artist-picked").replaceChildren(
+    ...state.artists.map((name) =>
+      el(
+        "button",
+        {
+          type: "button",
+          "aria-pressed": "true",
+          "aria-label": `${name} を外す`,
+          onclick: () => {
+            toggleArtist(name);
+            for (const option of $("artist-list").querySelectorAll(".artist-option")) {
+              if (option.dataset.name === name) {
+                option.setAttribute("aria-pressed", "false");
+              }
+            }
+            renderArtistPicked();
+          },
+        },
+        name,
+        el("span", { className: "remove", "aria-hidden": "true" }, "×"),
+      ),
+    ),
+  );
+}
+
+/**
+ * 一覧を描く。曲数・並びの値はシートのラベルで絞り込んだ曲で決め、0 曲のアーティストは出さない（選んでいるものは残す）。
+ * シートの性別は、その性別の曲があるアーティストだけにする（曲数は減らさない。Issue #14）
+ */
 function renderArtistList() {
   const { songs } = state.data;
-  const counted = filterByGenders(filterByLabels(songs, state.labelIds), state.genders);
-  const options = artistOptions(songs, counted, state.artists)
+  const counted = filterByLabels(songs, state.artistLabelIds);
+  const options = artistOptions(songs, counted, state.artists, { genders: state.artistGenders, sort: state.artistSort })
     .filter((artist) => matchesArtistSearch(artist, $("artist-search").value));
-  $("artist-clear").disabled = state.artists.length === 0;
   $("artist-list").replaceChildren(
     ...options.map((artist) =>
       el(
@@ -248,11 +396,15 @@ function renderArtistList() {
               toggleArtist(artist.name);
               // 一覧は描き直さず、押したものの状態だけ変える（スクロール位置を動かさない）
               event.currentTarget.setAttribute("aria-pressed", String(state.artists.includes(artist.name)));
-              $("artist-clear").disabled = state.artists.length === 0;
+              renderArtistPicked();
             },
+            "data-name": artist.name,
           },
           el("span", { className: "check", "aria-hidden": "true" }),
           el("span", { className: "artist-name" }, artist.name),
+          ...(artistSortValue(artist, state.artistSort.key)
+            ? [el("span", { className: "artist-value" }, artistSortValue(artist, state.artistSort.key))]
+            : []),
           el("span", { className: "artist-count" }, `${artist.count} 曲`),
         ),
       ),
@@ -261,6 +413,7 @@ function renderArtistList() {
   if (options.length === 0) {
     $("artist-list").append(el("li", { className: "empty" }, "該当するアーティストはありません"));
   }
+  renderArtistPicked();
 }
 
 $("artist-close").addEventListener("click", () => artistSheet.close());
@@ -279,6 +432,14 @@ $("artist-search").addEventListener("input", (event) => {
 
 artistSheet.addEventListener("close", () => {
   document.documentElement.classList.remove("detail-open");
+  // チェックが入っていれば、シートの性別・ラベルをホーム画面の絞り込みにする（×・外側・Esc のどれで閉じても）
+  if ($("artist-reflect").checked) {
+    state.genders = [...state.artistGenders];
+    state.labelIds = [...state.artistLabelIds];
+    renderGenders();
+    renderLabels();
+    render();
+  }
   document.querySelector("#artists .artist-open")?.focus();
 });
 
@@ -354,7 +515,7 @@ function changeVoice(choice) {
 }
 
 function renderSortButtons() {
-  for (const button of document.querySelectorAll(".sort button")) {
+  for (const button of document.querySelectorAll("#sort button")) {
     const active = button.dataset.sort === state.sort.key;
     button.setAttribute("aria-pressed", String(active));
     button.dataset.arrow = active ? (state.sort.desc ? "▼" : "▲") : "";
@@ -757,7 +918,7 @@ document.addEventListener("pointerup", (event) => {
   active.blur();
 });
 
-for (const button of document.querySelectorAll(".sort button")) {
+for (const button of document.querySelectorAll("#sort button")) {
   button.addEventListener("click", () => {
     state.sort = nextSort(state.sort, button.dataset.sort);
     saveSort();

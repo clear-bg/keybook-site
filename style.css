@@ -973,6 +973,54 @@ footer p {
   font-size: 0.85rem;
 }
 
+/* 並びの値（登録順の「11/3 追加」、最高音の音名。Issue #14） */
+.artist-value {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* 閉じるときにホーム画面へ反映するかのチェック（Issue #14） */
+.artist-reflect {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.artist-reflect input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+/* 選んでいるアーティスト（シートの一番下に横1行。はみ出したら横スクロール）。背景の色と影で一覧と分ける */
+.artist-picked {
+  flex: none;
+  align-items: center;
+  min-height: 52px;
+  padding: 10px 16px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  .artist-picked {
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.35);
+  }
+}
+
+.artist-picked-empty {
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
