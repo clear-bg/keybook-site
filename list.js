@@ -1,7 +1,7 @@
 // 曲の一覧の処理（閲覧ページと管理画面で共用。DOM に依存しないので node --test で確かめる）
 // docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）・4.16.1（曲の詳細）
 
-import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=7cbf4a6356";
+import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=ff11c1cc2f";
 
 // ---- キーの表示 ----
 
@@ -265,7 +265,6 @@ export function formatOffset(offset) {
 // ---- 曲の詳細（4.16.1） ----
 
 // 離れすぎの注記を出す基準（半音の数）
-const TOP_WARN_GAP = 2; // 1つだけ超えるのは、キーの ±1 を丸めた結果なので出さない（4.4）
 const LOW_WARN_GAP = 5;
 const TOP_ROOM_GAP = 5;
 const PITCH_FIELDS = ["max_note", "min_note", "max_chest", "max_falsetto"];
@@ -316,7 +315,7 @@ export function rangeWarnings(sung, voice) {
     return [];
   }
   const warnings = [];
-  if (sung.max_note != null && sung.max_note - voice.max_note >= TOP_WARN_GAP) {
+  if (sung.max_note != null && sung.max_note > voice.max_note) {
     warnings.push(`最高音が声より${sung.max_note - voice.max_note}高い`);
   }
   if (sung.min_note != null && voice.min_note - sung.min_note >= LOW_WARN_GAP) {

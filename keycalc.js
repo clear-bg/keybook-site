@@ -66,10 +66,10 @@ export function calcKey(voice, song, settings) {
   if (base == null) {
     return { key: null, octaveDown: false, octaveUp: false, overridden: false, outOfRange: false };
   }
-  // 4. ±1（半音）だけなら原キーにする。5. 微調整を加える（微調整は丸めない）
-  let key = (Math.abs(base.key) === 1 ? 0 : base.key) + (song.key_adjust ?? 0);
+  // 4. 微調整を加える（±1 も丸めずに計算どおり出す）
+  let key = base.key + (song.key_adjust ?? 0);
   let octaveDown = base.octaveDown;
-  // 6.（4.4.2）同じ高さの1オクターブ下で範囲に収まるなら、そちらの言い方にする（伴奏が下がりすぎないように）
+  // 5.（4.4.2）同じ高さの1オクターブ下で範囲に収まるなら、そちらの言い方にする（伴奏が下がりすぎないように）
   if (maleForFemale && !octaveDown && !base.octaveUp && key < 0 && Math.abs(key + 12) <= settings.key_range) {
     key += 12;
     octaveDown = true;
