@@ -1,14 +1,14 @@
 // 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベル・性別・アーティストの絞り込み・並び替えをして表示する。
 // カードを押すと曲の詳細を出す（4.16.1）
 
-import { calcKey, midiToNote } from "./keycalc.js?v=ff11c1cc2f";
+import { calcKey, midiToNote } from "./keycalc.js?v=4bf13fc7c0";
 import {
   DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, matchesSearch, nextSort, preselectedLabelIds, sortSongs,
   artistOptions, filterByArtists, keepKnownArtists, matchesArtistSearch, GENDERS, filterByGenders, genderName,
   adjustVoice, adjustedVoice, canAdjust, formatOffset, isAdjusted, resetAdjust, restoreVoiceChoice, selectVoice,
   chartBounds, formatDay, formatRange, keyBreakdown, keyShift, noteName, outsideVoice, rangeWarnings, shiftNotes,
   voiceUsedText,
-} from "./list.js?v=ff11c1cc2f";
+} from "./list.js?v=4bf13fc7c0";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 const VOICE_STORAGE_KEY = "keybook.voice";
@@ -91,7 +91,7 @@ async function load() {
   let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=ff11c1cc2f", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=4bf13fc7c0", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
@@ -117,6 +117,7 @@ async function load() {
   // 読み直して描き直しても、見ていた位置から動かさない
   const scrollY = window.scrollY;
   renderVoice();
+  renderGenders();
   renderLabels();
   renderArtists();
   render();
@@ -163,9 +164,9 @@ function renderLabels() {
   );
 }
 
-/** 性別とアーティストの絞り込み：性別のボタン、一覧を開くボタン、選んだアーティスト（押すと外す）を並べる（4.16） */
-function renderArtists() {
-  $("artists").replaceChildren(
+/** 性別の絞り込み：性別のボタンを並べる（4.16） */
+function renderGenders() {
+  $("genders").replaceChildren(
     ...GENDERS.map((gender) => {
       const pressed = state.genders.includes(gender.value);
       return el(
@@ -176,13 +177,19 @@ function renderArtists() {
           "aria-pressed": String(pressed),
           onclick: () => {
             state.genders = pressed ? state.genders.filter((g) => g !== gender.value) : [...state.genders, gender.value];
-            renderArtists();
+            renderGenders();
             render();
           },
         },
         gender.name,
       );
     }),
+  );
+}
+
+/** アーティストの絞り込み：一覧を開くボタンと、選んだアーティスト（押すと外す）を並べる（4.16） */
+function renderArtists() {
+  $("artists").replaceChildren(
     el(
       "button",
       { type: "button", className: "artist-open", "aria-haspopup": "dialog", onclick: openArtistSheet },

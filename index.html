@@ -13,8 +13,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#F2B134">
   <!-- 読み込み先の v= の値は、ビルドで内容のハッシュに置き換わる（4.14） -->
-  <link rel="stylesheet" href="style.css?v=ff11c1cc2f">
-  <script type="module" src="app.js?v=ff11c1cc2f"></script>
+  <link rel="stylesheet" href="style.css?v=4bf13fc7c0">
+  <script type="module" src="app.js?v=4bf13fc7c0"></script>
 </head>
 <body>
   <!-- 声の選択と調整（4.3.1）。一度合わせれば足りるので、スクロールすると隠れる場所に置く -->
@@ -31,14 +31,20 @@
       <input type="search" id="search" placeholder="曲名・アーティストで検索" aria-label="曲名・アーティストで検索" autocomplete="off">
       <button type="button" id="search-clear" class="search-clear" aria-label="検索語を消す" hidden>×</button>
     </div>
+    <!-- 絞り込みは上から性別・ラベル・アーティストの順に1行ずつ（4.16） -->
+    <div id="genders" class="filters" role="group" aria-label="性別で絞り込み"></div>
     <div id="labels" class="filters" role="group" aria-label="ラベルで絞り込み"></div>
     <!-- アーティストの絞り込み：ボタンで一覧のシートを開き、選んだアーティストは横に並べる（4.16） -->
     <div id="artists" class="filters" role="group" aria-label="アーティストで絞り込み"></div>
-    <div class="sort" role="group" aria-label="並び替え">
-      <button type="button" data-sort="id">登録順</button>
-      <button type="button" data-sort="title">曲名</button>
-      <button type="button" data-sort="artist">アーティスト</button>
-      <button type="button" data-sort="max_note">最高音</button>
+    <!-- 並び替え：絞り込みと見分けられるよう、見出しを付けて枠のない文字のタブにする（4.16） -->
+    <div class="sort-row">
+      <span class="sort-heading" aria-hidden="true">⇅ 並び替え</span>
+      <div class="sort" role="group" aria-label="並び替え">
+        <button type="button" data-sort="id">登録順</button>
+        <button type="button" data-sort="title">曲名</button>
+        <button type="button" data-sort="artist">アーティスト</button>
+        <button type="button" data-sort="max_note">最高音</button>
+      </div>
     </div>
     <p id="count" class="count" role="status"></p>
   </header>

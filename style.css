@@ -260,8 +260,7 @@ input {
   display: none;
 }
 
-.filters button,
-.sort button {
+.filters button {
   flex: none;
   padding: 6px 12px;
   border: 1px solid var(--border);
@@ -274,8 +273,7 @@ input {
 }
 
 @media (hover: hover) {
-  .filters button:hover,
-  .sort button:hover {
+  .filters button:hover {
     border-color: var(--accent);
     background: var(--hover-bg);
   }
@@ -309,15 +307,54 @@ input {
   display: none;
 }
 
-.sort button[aria-pressed="true"] {
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 600;
+/* 並び替え：見出しと、枠のない文字のタブ。行の下に薄い線を引き、選んでいるものだけ青い下線（4.16） */
+.sort-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+  border-bottom: 1px solid var(--border);
 }
 
-/* 性別のボタンのあとに間を空けて、アーティストと見分ける */
-.filters .gender + .artist-open {
-  margin-left: 6px;
+.sort-heading {
+  flex: none;
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.sort {
+  flex: 1;
+  min-width: 0;
+  gap: 16px;
+  /* 選んでいるものの下線を、行の下の線に重ねる */
+  margin-bottom: -1px;
+}
+
+.sort button {
+  flex: none;
+  padding: 6px 0 7px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+@media (hover: hover) {
+  .sort button:hover {
+    color: var(--fg);
+  }
+}
+
+.sort button[aria-pressed="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* アーティストの一覧を開くボタン（選んだ数を丸で添える） */
