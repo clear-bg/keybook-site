@@ -997,11 +997,11 @@ footer p {
   accent-color: var(--accent);
 }
 
-/* 選んでいるアーティスト（シートの一番下に横1行。はみ出したら横スクロール）。背景の色と影で一覧と分ける */
-.artist-picked {
+/* シートの下端：選んでいるアーティストと「キャンセル」「絞り込む」。背景の色と影で一覧と分ける（Issue #14） */
+.artist-sheet-foot {
   flex: none;
-  align-items: center;
-  min-height: 52px;
+  display: grid;
+  gap: 8px;
   padding: 10px 16px;
   padding-bottom: calc(10px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
@@ -1010,9 +1010,62 @@ footer p {
 }
 
 @media (prefers-color-scheme: dark) {
-  .artist-picked {
+  .artist-sheet-foot {
     box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.35);
   }
+}
+
+/* 選んでいるアーティスト（横1行。はみ出したら横スクロール） */
+.artist-picked {
+  align-items: center;
+  min-height: 34px;
+}
+
+.artist-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* キャンセルは枠のない灰色の文字、絞り込むは青いボタン（小さめ） */
+.artist-cancel {
+  padding: 8px 6px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.artist-apply {
+  padding: 8px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.artist-apply-count {
+  margin-left: 2px;
+  font-size: 0.85em;
+  font-weight: 400;
+}
+
+@media (hover: hover) {
+  .artist-cancel:hover {
+    color: var(--fg);
+  }
+}
+
+.artist-cancel:focus-visible,
+.artist-apply:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .artist-picked-empty {

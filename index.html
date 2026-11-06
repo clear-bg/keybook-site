@@ -13,8 +13,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#F2B134">
   <!-- 読み込み先の v= の値は、ビルドで内容のハッシュに置き換わる（4.14） -->
-  <link rel="stylesheet" href="style.css?v=8ab44c04db">
-  <script type="module" src="app.js?v=8ab44c04db"></script>
+  <link rel="stylesheet" href="style.css?v=439e298ce0">
+  <script type="module" src="app.js?v=439e298ce0"></script>
 </head>
 <body>
   <!-- 声の選択と調整（4.3.1）。一度合わせれば足りるので、スクロールすると隠れる場所に置く -->
@@ -81,7 +81,7 @@
       <div id="artist-labels" class="filters" role="group" aria-label="アーティストの一覧をラベルで絞り込み"></div>
       <label class="artist-reflect">
         <input type="checkbox" id="artist-reflect">
-        閉じるときにホーム画面のラベル・性別にも反映する
+        絞り込むときにラベル・性別も反映する
       </label>
       <div class="sort-row">
         <span class="sort-heading" aria-hidden="true">⇅ 並び替え</span>
@@ -89,8 +89,15 @@
       </div>
     </div>
     <ul id="artist-list" class="artist-list"></ul>
-    <!-- 選んでいるアーティスト：押すと外す。選んでいないときも行を残す（一覧が動かないように） -->
-    <div id="artist-picked" class="filters artist-picked" role="group" aria-label="選んでいるアーティスト"></div>
+    <!-- シートの中の選択は下書き。「絞り込む」を押したときだけホーム画面に反映する（キャンセル・×・外側・Esc は反映しない） -->
+    <div class="artist-sheet-foot">
+      <!-- 選んでいるアーティスト：押すと外す。選んでいないときも行を残す（一覧が動かないように） -->
+      <div id="artist-picked" class="filters artist-picked" role="group" aria-label="選んでいるアーティスト"></div>
+      <div class="artist-actions">
+        <button type="button" id="artist-cancel" class="artist-cancel">キャンセル</button>
+        <button type="button" id="artist-apply" class="artist-apply">絞り込む<span id="artist-apply-count" class="artist-apply-count"></span></button>
+      </div>
+    </div>
   </dialog>
 </body>
 </html>

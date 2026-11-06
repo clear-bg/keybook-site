@@ -1,14 +1,14 @@
 // 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベル・性別・アーティストの絞り込み・並び替えをして表示する。
 // カードを押すと曲の詳細を出す（4.16.1）
 
-import { calcKey, midiToNote } from "./keycalc.js?v=8ab44c04db";
+import { calcKey, midiToNote } from "./keycalc.js?v=439e298ce0";
 import {
-  DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, matchesSearch, nextSort, preselectedLabelIds, sortSongs,
-  artistOptions, filterByArtists, keepKnownArtists, matchesArtistSearch, GENDERS, filterByGenders, genderName,
+  DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, nextSort, preselectedLabelIds, sortSongs,
+  artistOptions, keepKnownArtists, matchesArtistSearch, GENDERS, genderName,
   adjustVoice, adjustedVoice, canAdjust, formatOffset, isAdjusted, resetAdjust, restoreVoiceChoice, selectVoice,
   chartBounds, formatDay, formatRange, keyBreakdown, keyShift, noteName, outsideVoice, rangeWarnings, shiftNotes,
-  voiceUsedText, DEFAULT_ARTIST_SORT, nextArtistSort, isArtistSortKey, artistSortValue,
-} from "./list.js?v=8ab44c04db";
+  voiceUsedText, filterSongs, DEFAULT_ARTIST_SORT, nextArtistSort, isArtistSortKey, artistSortValue,
+} from "./list.js?v=439e298ce0";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 const ARTIST_SORT_STORAGE_KEY = "keybook.artistSort";
@@ -27,6 +27,8 @@ const state = {
   // アーティストの一覧の性別・ラベル（一覧だけを絞る。開くたびにホーム画面の選択から始める）と並び順（覚えさせる）
   artistGenders: [],
   artistLabelIds: [],
+  // シートで選んでいるアーティスト（下書き。「絞り込む」で state.artists にする）
+  artistDraft: [],
   artistSort: loadArtistSort(),
   // 選んだ声と調整（4.3.1）。songs.json を読むまでは覚えていた値をそのまま持つ
   voice: loadVoiceChoice(),
@@ -116,7 +118,7 @@ async function load() {
   let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=8ab44c04db", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=439e298ce0", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
@@ -139,6 +141,7 @@ async function load() {
   state.labelIds = state.labelIds.filter((id) => data.labels.some((label) => label.id === id));
   state.artistLabelIds = state.artistLabelIds.filter((id) => data.labels.some((label) => label.id === id));
   state.artists = keepKnownArtists(state.artists, data.songs);
+  state.artistDraft = keepKnownArtists(state.artistDraft, data.songs);
   $("updated").textContent = `${formatDate(data.generated_at)} 更新`;
   // 読み直して描き直しても、見ていた位置から動かさない
   const scrollY = window.scrollY;
@@ -249,6 +252,7 @@ function openArtistSheet() {
   $("artist-search-clear").hidden = true;
   state.artistGenders = [...state.genders];
   state.artistLabelIds = [...state.labelIds];
+  state.artistDraft = [...state.artists];
   $("artist-reflect").checked = false;
   renderArtistGenders();
   renderArtistLabels();
@@ -340,15 +344,38 @@ function renderArtistSort() {
   );
 }
 
+/** シートで選んでいるアーティスト（下書き）を切り替える */
+function toggleArtistDraft(name) {
+  state.artistDraft = state.artistDraft.includes(name)
+    ? state.artistDraft.filter((a) => a !== name)
+    : [...state.artistDraft, name];
+}
+
+/** 「絞り込む」を押したあとにホーム画面に出る曲（チェックが入っていれば、ラベル・性別もシートのものにする） */
+function appliedFilters() {
+  const reflect = $("artist-reflect").checked;
+  return {
+    query: state.query,
+    labelIds: reflect ? state.artistLabelIds : state.labelIds,
+    genders: reflect ? state.artistGenders : state.genders,
+    artists: state.artistDraft,
+  };
+}
+
+function renderArtistApply() {
+  $("artist-apply-count").textContent = `（${filterSongs(state.data.songs, appliedFilters()).length} 曲）`;
+}
+
 /** 選んでいるアーティスト（シートの一番下）。押すと外す。一覧は描き直さず、そのアーティストの行の状態だけ変える */
 function renderArtistPicked() {
-  $("artist-clear").disabled = state.artists.length === 0;
-  if (state.artists.length === 0) {
+  $("artist-clear").disabled = state.artistDraft.length === 0;
+  renderArtistApply();
+  if (state.artistDraft.length === 0) {
     $("artist-picked").replaceChildren(el("span", { className: "artist-picked-empty" }, "選んでいるアーティストはありません"));
     return;
   }
   $("artist-picked").replaceChildren(
-    ...state.artists.map((name) =>
+    ...state.artistDraft.map((name) =>
       el(
         "button",
         {
@@ -356,7 +383,7 @@ function renderArtistPicked() {
           "aria-pressed": "true",
           "aria-label": `${name} を外す`,
           onclick: () => {
-            toggleArtist(name);
+            toggleArtistDraft(name);
             for (const option of $("artist-list").querySelectorAll(".artist-option")) {
               if (option.dataset.name === name) {
                 option.setAttribute("aria-pressed", "false");
@@ -379,7 +406,7 @@ function renderArtistPicked() {
 function renderArtistList() {
   const { songs } = state.data;
   const counted = filterByLabels(songs, state.artistLabelIds);
-  const options = artistOptions(songs, counted, state.artists, { genders: state.artistGenders, sort: state.artistSort })
+  const options = artistOptions(songs, counted, state.artistDraft, { genders: state.artistGenders, sort: state.artistSort })
     .filter((artist) => matchesArtistSearch(artist, $("artist-search").value));
   $("artist-list").replaceChildren(
     ...options.map((artist) =>
@@ -393,9 +420,9 @@ function renderArtistList() {
             className: "artist-option",
             "aria-pressed": String(artist.selected),
             onclick: (event) => {
-              toggleArtist(artist.name);
+              toggleArtistDraft(artist.name);
               // 一覧は描き直さず、押したものの状態だけ変える（スクロール位置を動かさない）
-              event.currentTarget.setAttribute("aria-pressed", String(state.artists.includes(artist.name)));
+              event.currentTarget.setAttribute("aria-pressed", String(state.artistDraft.includes(artist.name)));
               renderArtistPicked();
             },
             "data-name": artist.name,
@@ -416,12 +443,28 @@ function renderArtistList() {
   renderArtistPicked();
 }
 
+// × とキャンセル：何も反映せずに閉じる（外側・Esc も同じ）
 $("artist-close").addEventListener("click", () => artistSheet.close());
+$("artist-cancel").addEventListener("click", () => artistSheet.close());
 
-$("artist-clear").addEventListener("click", () => {
-  state.artists = [];
+// 絞り込む：選んだアーティスト（チェックが入っていればラベル・性別も）をホーム画面に反映して閉じる
+$("artist-apply").addEventListener("click", () => {
+  const applied = appliedFilters();
+  state.artists = [...applied.artists];
+  state.labelIds = [...applied.labelIds];
+  state.genders = [...applied.genders];
+  renderGenders();
+  renderLabels();
   renderArtists();
   render();
+  artistSheet.close();
+});
+
+$("artist-reflect").addEventListener("change", renderArtistApply);
+
+// すべて解除：シートの中の選択（下書き）を外すだけ。反映するのは「絞り込む」を押したとき
+$("artist-clear").addEventListener("click", () => {
+  state.artistDraft = [];
   renderArtistList();
 });
 
@@ -432,14 +475,6 @@ $("artist-search").addEventListener("input", (event) => {
 
 artistSheet.addEventListener("close", () => {
   document.documentElement.classList.remove("detail-open");
-  // チェックが入っていれば、シートの性別・ラベルをホーム画面の絞り込みにする（×・外側・Esc のどれで閉じても）
-  if ($("artist-reflect").checked) {
-    state.genders = [...state.artistGenders];
-    state.labelIds = [...state.artistLabelIds];
-    renderGenders();
-    renderLabels();
-    render();
-  }
   document.querySelector("#artists .artist-open")?.focus();
 });
 
@@ -525,8 +560,7 @@ function renderSortButtons() {
 function render() {
   const { data } = state;
   const labels = new Map(data.labels.map((label) => [label.id, label]));
-  const found = data.songs.filter((song) => matchesSearch(song, state.query));
-  const filtered = filterByArtists(filterByGenders(filterByLabels(found, state.labelIds), state.genders), state.artists);
+  const filtered = filterSongs(data.songs, { query: state.query, labelIds: state.labelIds, genders: state.genders, artists: state.artists });
   const songs = sortSongs(filtered, state.sort);
 
   renderSortButtons();

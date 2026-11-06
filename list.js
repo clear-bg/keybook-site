@@ -1,7 +1,7 @@
 // 曲の一覧の処理（閲覧ページと管理画面で共用。DOM に依存しないので node --test で確かめる）
 // docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）・4.16.1（曲の詳細）
 
-import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=8ab44c04db";
+import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=439e298ce0";
 
 // ---- キーの表示 ----
 
@@ -186,6 +186,15 @@ export function genderName(value) {
 /** 選んだ性別のどれかの曲だけを返す（何も選ばなければすべて）。null を選ぶと未設定の曲（管理画面） */
 export function filterByGenders(songs, genders) {
   return genders.length === 0 ? songs : songs.filter((song) => genders.includes(song.gender ?? null));
+}
+
+/**
+ * 検索語・ラベル・性別・アーティストをすべて満たす曲（ホーム画面の表示と、アーティストの「絞り込む」の曲数で使う）。
+ * 性別の null は未設定の曲（管理画面）
+ */
+export function filterSongs(songs, { query = "", labelIds = [], genders = [], artists = [] } = {}) {
+  const found = songs.filter((song) => matchesSearch(song, query));
+  return filterByArtists(filterByGenders(filterByLabels(found, labelIds), genders), artists);
 }
 
 /** 読み直したデータにないアーティストは選択から外す */
