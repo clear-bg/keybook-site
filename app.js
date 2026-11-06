@@ -1,20 +1,38 @@
 // 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベル・性別・アーティストの絞り込み・並び替えをして表示する。
 // カードを押すと曲の詳細を出す（4.16.1）
 
-import { calcKey, midiToNote } from "./keycalc.js?v=70d3955178";
+import { calcKey, midiToNote } from "./keycalc.js?v=c18605c185";
 import {
   DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, nextSort, preselectedLabelIds, sortSongs,
   artistOptions, keepKnownArtists, matchesArtistSearch, GENDERS, genderName,
   adjustVoice, adjustedVoice, canAdjust, formatOffset, isAdjusted, resetAdjust, restoreVoiceChoice, selectVoice,
   chartBounds, formatDay, formatRange, keyBreakdown, keyShift, noteName, outsideVoice, rangeWarnings, shiftNotes,
   voiceUsedText, filterSongs, sheetDragOffset, sheetDragResult, DEFAULT_ARTIST_SORT, nextArtistSort, isArtistSortKey, artistSortValue,
-} from "./list.js?v=70d3955178";
+} from "./list.js?v=c18605c185";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 const ARTIST_SORT_STORAGE_KEY = "keybook.artistSort";
 const VOICE_STORAGE_KEY = "keybook.voice";
 
 const $ = (id) => document.getElementById(id);
+
+// 最後の操作がキーボードか（指・マウスなら false）。シートを閉じたあとに開いたボタンへフォーカスを戻すのは、
+// キーボードで操作しているときだけにする（指で閉じたときに、戻したボタンの周りに枠が出ないように。Issue #17）
+let lastInputWasKeyboard = false;
+document.addEventListener("keydown", () => { lastInputWasKeyboard = true; }, true);
+document.addEventListener("pointerdown", () => { lastInputWasKeyboard = false; }, true);
+
+/**
+ * シートを閉じたあとのフォーカス。キーボードなら target（開いたボタンなど）に移す。
+ * 指・マウスなら、ブラウザが閉じるときに自動で戻したフォーカスを外す（戻されたボタンの周りに枠が出るため）
+ */
+function settleFocusAfterSheet(target) {
+  if (lastInputWasKeyboard) {
+    target?.focus();
+  } else if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
+    document.activeElement.blur();
+  }
+}
 
 const state = {
   data: null,
@@ -118,7 +136,7 @@ async function load() {
   let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=70d3955178", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=c18605c185", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
@@ -223,7 +241,7 @@ function renderArtists() {
     el(
       "button",
       { type: "button", className: "artist-open", "aria-haspopup": "dialog", onclick: openArtistSheet },
-      "アーティスト",
+      "アーティストで絞り込み",
       ...(state.artists.length > 0 ? [el("span", { className: "badge" }, String(state.artists.length))] : []),
     ),
     ...state.artists.map((name) =>
@@ -475,7 +493,7 @@ $("artist-search").addEventListener("input", (event) => {
 
 artistSheet.addEventListener("close", () => {
   document.documentElement.classList.remove("detail-open");
-  document.querySelector("#artists .artist-open")?.focus();
+  settleFocusAfterSheet(document.querySelector("#artists .artist-open"));
 });
 
 // シートの外側（暗い部分）を押したら閉じる
@@ -664,7 +682,7 @@ detail.addEventListener("close", () => {
   document.documentElement.classList.remove("detail-open");
   const id = state.detailId;
   state.detailId = null;
-  document.querySelector(`#songs [data-id="${id}"]`)?.focus();
+  settleFocusAfterSheet(document.querySelector(`#songs [data-id="${id}"]`));
 });
 
 // シートの外側（暗い部分）を押したら閉じる。シートの中を押したときは対象が中の要素になる

@@ -1,7 +1,7 @@
 // 曲の一覧の処理（閲覧ページと管理画面で共用。DOM に依存しないので node --test で確かめる）
 // docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）・4.16.1（曲の詳細）
 
-import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=70d3955178";
+import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=c18605c185";
 
 // ---- キーの表示 ----
 
