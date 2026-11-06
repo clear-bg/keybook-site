@@ -1,7 +1,7 @@
 // 曲の一覧の処理（閲覧ページと管理画面で共用。DOM に依存しないので node --test で確かめる）
 // docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）・4.16.1（曲の詳細）
 
-import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=8e203d2f5b";
+import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=561861e932";
 
 // ---- キーの表示 ----
 
@@ -480,4 +480,23 @@ export function sheetDragResult({ dy, height, velocity }) {
     return "close";
   }
   return "back";
+}
+
+// ---- 絞り込みを隠しているときの表示（Issue #15） ----
+
+/** かかっている絞り込みを短く：性別（男性・女性・その他の順）、ラベル（表示順）、「アーティスト n」を「・」でつなぐ。なければ "" */
+export function filterSummary({ genders, labelIds, artists }, labels) {
+  const parts = [
+    ...GENDERS.filter((gender) => genders.includes(gender.value)).map((gender) => gender.name),
+    ...labels.filter((label) => labelIds.includes(label.id)).sort((a, b) => a.order - b.order).map((label) => label.name),
+  ];
+  if (artists.length > 0) {
+    parts.push(`アーティスト ${artists.length}`);
+  }
+  return parts.join("・");
+}
+
+/** ボタンの丸に出す数：選んでいる性別・ラベル・アーティストの数の合計（並び替えは数えない） */
+export function activeFilterCount({ genders, labelIds, artists }) {
+  return genders.length + labelIds.length + artists.length;
 }

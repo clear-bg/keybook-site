@@ -13,8 +13,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#F2B134">
   <!-- 読み込み先の v= の値は、ビルドで内容のハッシュに置き換わる（4.14） -->
-  <link rel="stylesheet" href="style.css?v=8e203d2f5b">
-  <script type="module" src="app.js?v=8e203d2f5b"></script>
+  <link rel="stylesheet" href="style.css?v=561861e932">
+  <script type="module" src="app.js?v=561861e932"></script>
 </head>
 <body>
   <!-- 声の選択と調整（4.3.1）。一度合わせれば足りるので、スクロールすると隠れる場所に置く -->
@@ -27,10 +27,18 @@
   </section>
 
   <header class="controls">
-    <div class="search-box">
-      <input type="search" id="search" placeholder="曲名・アーティストで検索" aria-label="曲名・アーティストで検索" autocomplete="off">
-      <button type="button" id="search-clear" class="search-clear" aria-label="検索語を消す" hidden>×</button>
+    <div class="search-row">
+      <div class="search-box">
+        <input type="search" id="search" placeholder="曲名・アーティストで検索" aria-label="曲名・アーティストで検索" autocomplete="off">
+        <button type="button" id="search-clear" class="search-clear" aria-label="検索語を消す" hidden>×</button>
+      </div>
+      <!-- 絞り込みと並び替えを隠す・表示（Issue #15）。隠しているときは、かかっている絞り込みの数を丸で出す -->
+      <button type="button" id="controls-toggle" class="controls-toggle" aria-controls="controls-more" aria-expanded="true" aria-label="絞り込みと並び替えを隠す">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v5l-4 2v-7z"/></svg>
+        <span id="controls-badge" class="controls-badge" aria-hidden="true" hidden></span>
+      </button>
     </div>
+    <div id="controls-more" class="controls-more">
     <!-- 絞り込みは上から性別・ラベル・アーティストの順に1行ずつ（4.16） -->
     <div id="genders" class="filters" role="group" aria-label="性別で絞り込み"></div>
     <div id="labels" class="filters" role="group" aria-label="ラベルで絞り込み"></div>
@@ -46,7 +54,9 @@
         <button type="button" data-sort="max_note">最高音</button>
       </div>
     </div>
-    <p id="count" class="count" role="status"></p>
+    </div>
+    <!-- 隠しているときは、曲数の後ろにかかっている絞り込みと並び順を出す -->
+    <p class="count" role="status"><span id="count"></span><span id="count-summary" class="count-summary" hidden></span></p>
   </header>
 
   <main>
@@ -77,7 +87,13 @@
         <button type="button" id="artist-search-clear" class="search-clear" aria-label="検索語を消す" hidden>×</button>
       </div>
       <!-- シートの性別・ラベルは一覧だけを絞る（曲の一覧には効かない）。開くたびにホーム画面の選択から始める（Issue #14） -->
-      <div id="artist-genders" class="filters" role="group" aria-label="アーティストの一覧を性別で絞り込み"></div>
+      <!-- 性別の行の右端に、条件（性別・ラベル・チェック・並び替え）を隠すボタン。隠しているときは同じ行に条件を短く出す（Issue #15） -->
+      <div class="artist-cond-row">
+        <div id="artist-genders" class="filters" role="group" aria-label="アーティストの一覧を性別で絞り込み"></div>
+        <span id="artist-cond-summary" class="artist-cond-summary" hidden></span>
+        <button type="button" id="artist-cond-toggle" class="artist-cond-toggle" aria-controls="artist-cond-more" aria-expanded="true">条件を隠す ▲</button>
+      </div>
+      <div id="artist-cond-more" class="artist-cond-more">
       <div id="artist-labels" class="filters" role="group" aria-label="アーティストの一覧をラベルで絞り込み"></div>
       <label class="artist-reflect">
         <input type="checkbox" id="artist-reflect">
@@ -86,6 +102,7 @@
       <div class="sort-row">
         <span class="sort-heading" aria-hidden="true">⇅ 並び替え</span>
         <div id="artist-sort" class="sort" role="group" aria-label="アーティストの並び替え"></div>
+      </div>
       </div>
     </div>
     <ul id="artist-list" class="artist-list"></ul>

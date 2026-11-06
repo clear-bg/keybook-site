@@ -1,14 +1,14 @@
 // 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベル・性別・アーティストの絞り込み・並び替えをして表示する。
 // カードを押すと曲の詳細を出す（4.16.1）
 
-import { calcKey, midiToNote } from "./keycalc.js?v=8e203d2f5b";
+import { calcKey, midiToNote } from "./keycalc.js?v=561861e932";
 import {
   DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, nextSort, preselectedLabelIds, sortSongs,
   artistOptions, keepKnownArtists, matchesArtistSearch, GENDERS, genderName,
   adjustVoice, adjustedVoice, canAdjust, formatOffset, isAdjusted, resetAdjust, restoreVoiceChoice, selectVoice,
   chartBounds, formatDay, formatRange, keyBreakdown, keyShift, noteName, outsideVoice, rangeWarnings, shiftNotes,
-  voiceUsedText, filterSongs, sheetDragOffset, sheetDragResult, DEFAULT_ARTIST_SORT, nextArtistSort, isArtistSortKey, artistSortValue,
-} from "./list.js?v=8e203d2f5b";
+  voiceUsedText, filterSongs, sheetDragOffset, sheetDragResult, filterSummary, activeFilterCount, DEFAULT_ARTIST_SORT, nextArtistSort, isArtistSortKey, artistSortValue,
+} from "./list.js?v=561861e932";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 const ARTIST_SORT_STORAGE_KEY = "keybook.artistSort";
@@ -52,6 +52,9 @@ const state = {
   artistLabelIds: [],
   // シートで選んでいるアーティスト（下書き。「絞り込む」で state.artists にする）
   artistDraft: [],
+  // 絞り込みと並び替えを表示しているか、シートの条件を表示しているか（覚えさせず、開くたびに表示から始める。Issue #15）
+  controlsOpen: true,
+  artistCondOpen: true,
   artistSort: loadArtistSort(),
   // 選んだ声と調整（4.3.1）。songs.json を読むまでは覚えていた値をそのまま持つ
   voice: loadVoiceChoice(),
@@ -141,7 +144,7 @@ async function load() {
   let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=8e203d2f5b", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=561861e932", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
@@ -276,7 +279,9 @@ function openArtistSheet() {
   state.artistGenders = [...state.genders];
   state.artistLabelIds = [...state.labelIds];
   state.artistDraft = [...state.artists];
+  state.artistCondOpen = true;
   $("artist-reflect").checked = false;
+  renderArtistCond();
   renderArtistGenders();
   renderArtistLabels();
   renderArtistSort();
@@ -338,6 +343,26 @@ function renderArtistLabels() {
     }),
   );
 }
+
+/** シートの条件（性別・ラベル・チェック・並び替え）を隠す・表示。隠しているときは性別の行に条件を短く出す */
+function renderArtistCond() {
+  const open = state.artistCondOpen;
+  $("artist-genders").hidden = !open;
+  $("artist-cond-more").hidden = !open;
+  $("artist-cond-summary").hidden = open;
+  $("artist-cond-toggle").setAttribute("aria-expanded", String(open));
+  $("artist-cond-toggle").textContent = open ? "条件を隠す ▲" : "条件を表示 ▼";
+  if (!open) {
+    const conditions = filterSummary({ genders: state.artistGenders, labelIds: state.artistLabelIds, artists: [] }, state.data.labels);
+    const sort = `${ARTIST_SORT_NAMES[state.artistSort.key]} ${state.artistSort.desc ? "▼" : "▲"}`;
+    $("artist-cond-summary").textContent = `条件：${conditions || "なし"} · ${sort}`;
+  }
+}
+
+$("artist-cond-toggle").addEventListener("click", () => {
+  state.artistCondOpen = !state.artistCondOpen;
+  renderArtistCond();
+});
 
 const ARTIST_SORT_NAMES = { count: "曲数", artist: "アーティスト名", latest: "登録順", max_note: "最高音" };
 
@@ -580,6 +605,33 @@ function renderSortButtons() {
   }
 }
 
+// 並び替えの名前（隠しているときに曲数の後ろに出す）
+const SORT_NAMES = { id: "登録順", title: "曲名", artist: "アーティスト名", max_note: "最高音" };
+
+/** 絞り込みと並び替えを隠す・表示（Issue #15）。隠しているときは、ボタンに絞り込みの数、曲数の後ろに絞り込みと並び順を出す */
+function renderControlsToggle() {
+  const open = state.controlsOpen;
+  const filters = { genders: state.genders, labelIds: state.labelIds, artists: state.artists };
+  $("controls-more").hidden = !open;
+  $("controls-toggle").setAttribute("aria-expanded", String(open));
+  $("controls-toggle").setAttribute("aria-label", open ? "絞り込みと並び替えを隠す" : "絞り込みと並び替えを表示");
+  const active = activeFilterCount(filters);
+  $("controls-badge").hidden = open || active === 0;
+  $("controls-badge").textContent = String(active);
+  $("count-summary").hidden = open;
+  if (!open) {
+    const sort = `${SORT_NAMES[state.sort.key]} ${state.sort.desc ? "▼" : "▲"}`;
+    $("count-summary").textContent = ` · ${[filterSummary(filters, state.data.labels), sort].filter(Boolean).join(" · ")}`;
+  }
+}
+
+$("controls-toggle").addEventListener("click", () => {
+  state.controlsOpen = !state.controlsOpen;
+  if (state.data) {
+    renderControlsToggle();
+  }
+});
+
 function render() {
   const { data } = state;
   const labels = new Map(data.labels.map((label) => [label.id, label]));
@@ -590,6 +642,7 @@ function render() {
   $("count").textContent = songs.length === data.songs.length
     ? `${songs.length} 曲`
     : `${songs.length} 曲（全 ${data.songs.length} 曲）`;
+  renderControlsToggle();
   // 声を選んでいなければキーはすべて「?」（4.16）
   const voice = adjustedVoice(state.voice, data.voices) ?? { max_note: null };
   $("songs").replaceChildren(...songs.map((song) => renderSong(song, labels, voice)));

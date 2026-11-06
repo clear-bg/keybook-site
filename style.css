@@ -390,6 +390,89 @@ input {
 .count {
   color: var(--muted);
   font-size: 0.85rem;
+  /* 隠しているときに後ろに出す絞り込みが長ければ … で切る */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count-summary {
+  color: var(--accent);
+}
+
+.count-summary[hidden],
+.filters[hidden],
+.controls-more[hidden],
+.artist-cond-more[hidden],
+.artist-cond-summary[hidden] {
+  display: none;
+}
+
+/* 検索欄と、絞り込みと並び替えを隠すボタン（Issue #15） */
+.search-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.search-row .search-box {
+  flex: 1;
+  min-width: 0;
+}
+
+.controls-more {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* じょうご（絞り込み）の印だけの四角いボタン。隠しているときは青くし、絞り込みの数を右上に丸で出す */
+.controls-toggle {
+  flex: none;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.controls-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.controls-toggle[aria-expanded="false"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.controls-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.controls-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.controls-badge[hidden] {
+  display: none;
 }
 
 /* ---- 曲のカード ---- */
@@ -1010,6 +1093,51 @@ footer p {
   flex: none;
   color: var(--muted);
   font-size: 0.75rem;
+}
+
+/* シートの条件を隠すボタン（性別の行の右端）と、隠しているときの条件（Issue #15） */
+.artist-cond-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.artist-cond-row .filters {
+  flex: 1;
+  min-width: 0;
+}
+
+.artist-cond-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artist-cond-toggle {
+  flex: none;
+  margin-left: auto;
+  padding: 6px 2px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.artist-cond-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.artist-cond-more {
+  display: grid;
+  gap: 10px;
 }
 
 /* 閉じるときにホーム画面へ反映するかのチェック（Issue #14） */
