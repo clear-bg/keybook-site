@@ -1,7 +1,7 @@
 // 曲の一覧の処理（閲覧ページと管理画面で共用。DOM に依存しないので node --test で確かめる）
 // docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）・4.16.1（曲の詳細）
 
-import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=561861e932";
+import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=b2a1ae28e8";
 
 // ---- キーの表示 ----
 
@@ -480,6 +480,41 @@ export function sheetDragResult({ dy, height, velocity }) {
     return "close";
   }
   return "back";
+}
+
+// ---- アーティストのシートを、つまみを上に引いて広げる（Issue #18） ----
+// 位置はシートの上端の、画面の上からの距離（px）で表す。止まるのは「今の大きさ」「広げた大きさ」の2段
+
+/** 引いている間のシートの上端。指について上下に動き、広げた大きさより上には動かさない */
+export function stretchSheetTop({ startTop, dy, expandedTop }) {
+  return Math.max(expandedTop, startTop + dy);
+}
+
+/**
+ * 指を離したときに "expanded"（広げる）・"normal"（今の大きさ）・"close"（閉じる）のどれにするか。
+ * from は引き始めの大きさ、top は離したときの上端、dy は指を動かした距離（下が正）、velocity は離す直前の速さ（px/ms。下が正）。
+ * normalTop・expandedTop はそれぞれの大きさのときの上端、normalHeight は今の大きさのときの高さ。
+ */
+export function stretchSheetResult({ from, top, dy, velocity, normalTop, expandedTop, normalHeight }) {
+  // 閉じる線は画面の上での位置で決める（広げていても同じ線。今の大きさから 120px か高さの 1/4 下げたところ）
+  if (top >= normalTop + Math.min(SHEET_CLOSE_DISTANCE, normalHeight / 4)) {
+    return "close";
+  }
+  // 下に速く払ったら1段下げる。今の大きさより 24px 以上下げていれば閉じる
+  if (dy >= SHEET_FLICK_DISTANCE && velocity >= SHEET_FLICK_VELOCITY) {
+    return top >= normalTop + SHEET_FLICK_DISTANCE ? "close" : "normal";
+  }
+  // 上に速く払ったら広げる（今の大きさより下から払ったときは、今の大きさに戻す）
+  if (dy <= -SHEET_FLICK_DISTANCE && velocity <= -SHEET_FLICK_VELOCITY) {
+    return top <= normalTop ? "expanded" : "normal";
+  }
+  if (top >= normalTop) {
+    return "normal";
+  }
+  // 今の大きさからは差の 1/3 上げたら広げる。広げた状態からは近いほうに戻る
+  const span = normalTop - expandedTop;
+  const line = from === "expanded" ? expandedTop + span / 2 : normalTop - span / 3;
+  return top <= line ? "expanded" : "normal";
 }
 
 // ---- 絞り込みを隠しているときの表示（Issue #15） ----

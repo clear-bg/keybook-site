@@ -1,14 +1,14 @@
 // 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベル・性別・アーティストの絞り込み・並び替えをして表示する。
 // カードを押すと曲の詳細を出す（4.16.1）
 
-import { calcKey, midiToNote } from "./keycalc.js?v=561861e932";
+import { calcKey, midiToNote } from "./keycalc.js?v=b2a1ae28e8";
 import {
   DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, nextSort, preselectedLabelIds, sortSongs,
   artistOptions, keepKnownArtists, matchesArtistSearch, GENDERS, genderName,
   adjustVoice, adjustedVoice, canAdjust, formatOffset, isAdjusted, resetAdjust, restoreVoiceChoice, selectVoice,
   chartBounds, formatDay, formatRange, keyBreakdown, keyShift, noteName, outsideVoice, rangeWarnings, shiftNotes,
-  voiceUsedText, filterSongs, sheetDragOffset, sheetDragResult, filterSummary, activeFilterCount, DEFAULT_ARTIST_SORT, nextArtistSort, isArtistSortKey, artistSortValue,
-} from "./list.js?v=561861e932";
+  voiceUsedText, filterSongs, sheetDragOffset, sheetDragResult, stretchSheetTop, stretchSheetResult, filterSummary, activeFilterCount, DEFAULT_ARTIST_SORT, nextArtistSort, isArtistSortKey, artistSortValue,
+} from "./list.js?v=b2a1ae28e8";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 const ARTIST_SORT_STORAGE_KEY = "keybook.artistSort";
@@ -144,7 +144,7 @@ async function load() {
   let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=561861e932", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=b2a1ae28e8", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
@@ -754,13 +754,16 @@ detail.addEventListener("click", (event) => {
 
 // 引っ張れる場所：つまみと見出しの行。ボタン・入力欄の上から始めたときは引っ張らない（押せるように）
 enableSheetDrag(detail, ".grab, .detail-head");
-// アーティストのシートは、引いて閉じたときも何も反映しない（キャンセルと同じ。#14）
-enableSheetDrag(artistSheet, ".grab, .artist-sheet-bar");
+// アーティストのシートは、引いて閉じたときも何も反映しない（キャンセルと同じ。#14）。上に引くと広げられる（#18）
+enableSheetDrag(artistSheet, ".grab, .artist-sheet-bar", { stretchable: true });
 
 const SHEET_SLIDE_MS = 180;
 
-/** 引いている間はシートを指について下げ、離したときに閉じるか元に戻すかを決める */
-function enableSheetDrag(sheet, handleSelector) {
+/**
+ * 引いている間はシートを指について動かし、離したときに閉じるか元に戻すかを決める。
+ * stretchable なら上にも引けて、離したときに「今の大きさ」「広げた大きさ」（.expanded）のどちらかで止める（Issue #18）
+ */
+function enableSheetDrag(sheet, handleSelector, { stretchable = false } = {}) {
   let drag = null;
   sheet.addEventListener("pointerdown", (event) => {
     const handle = event.target.closest(handleSelector);
@@ -768,6 +771,9 @@ function enableSheetDrag(sheet, handleSelector) {
       return;
     }
     drag = { id: event.pointerId, startY: event.clientY, lastY: event.clientY, lastTime: event.timeStamp, velocity: 0 };
+    if (stretchable) {
+      drag.sizes = measureStretchSheet(sheet);
+    }
     try {
       // 指がつまみの外に出ても動きを受け取り続ける
       handle.setPointerCapture(event.pointerId);
@@ -787,7 +793,21 @@ function enableSheetDrag(sheet, handleSelector) {
     }
     drag.lastY = event.clientY;
     drag.lastTime = event.timeStamp;
-    sheet.style.transform = `translateY(${sheetDragOffset(event.clientY - drag.startY)}px)`;
+    const dy = event.clientY - drag.startY;
+    if (!stretchable) {
+      sheet.style.transform = `translateY(${sheetDragOffset(dy)}px)`;
+      return;
+    }
+    // 今の大きさより上では高さを変え（下端は画面の下に付けたまま）、下ではシートごと下げる
+    const { bottom, startTop, normalTop, expandedTop, normalHeight } = drag.sizes;
+    const top = stretchSheetTop({ startTop, dy, expandedTop });
+    if (top < normalTop) {
+      sheet.style.height = `${bottom - top}px`;
+      sheet.style.transform = "";
+    } else {
+      sheet.style.height = `${normalHeight}px`;
+      sheet.style.transform = `translateY(${top - normalTop}px)`;
+    }
   });
   const end = (event) => {
     if (!drag || event.pointerId !== drag.id) {
@@ -795,26 +815,57 @@ function enableSheetDrag(sheet, handleSelector) {
     }
     // 止めてから離したときは払ったことにしない
     const velocity = event.timeStamp - drag.lastTime > 100 ? 0 : drag.velocity;
-    const result = event.type === "pointercancel"
-      ? "back"
-      : sheetDragResult({ dy: drag.lastY - drag.startY, height: sheet.offsetHeight, velocity });
+    const dy = drag.lastY - drag.startY;
+    let result;
+    if (!stretchable) {
+      result = event.type === "pointercancel" ? "back" : sheetDragResult({ dy, height: sheet.offsetHeight, velocity });
+    } else {
+      const { from, startTop, normalTop, expandedTop, normalHeight } = drag.sizes;
+      result = event.type === "pointercancel"
+        ? from
+        : stretchSheetResult({ from, top: stretchSheetTop({ startTop, dy, expandedTop }), dy, velocity, normalTop, expandedTop, normalHeight });
+    }
     drag = null;
     sheet.classList.remove("dragging");
     if (result === "close") {
       slideSheetOut(sheet);
-    } else {
-      sheet.style.transition = `transform ${SHEET_SLIDE_MS}ms ease-out`;
-      sheet.style.transform = "";
-      setTimeout(() => { sheet.style.transition = ""; }, SHEET_SLIDE_MS);
+      return;
     }
+    // 止まる大きさへ動かす。高さは .expanded の有無で決まるので、引いている間の高さは外す
+    sheet.classList.toggle("expanded", result === "expanded");
+    sheet.style.transition = `transform ${SHEET_SLIDE_MS}ms ease-out, height ${SHEET_SLIDE_MS}ms ease-out`;
+    sheet.style.transform = "";
+    sheet.style.height = "";
+    setTimeout(() => { sheet.style.transition = ""; }, SHEET_SLIDE_MS);
   };
   sheet.addEventListener("pointerup", end);
   sheet.addEventListener("pointercancel", end);
-  // 閉じたら、次に開いたときのために位置を戻す
+  // 閉じたら、次に開いたときのために位置と大きさを戻す（開くたびに今の大きさから始める）
   sheet.addEventListener("close", () => {
+    sheet.classList.remove("expanded");
     sheet.style.transform = "";
+    sheet.style.height = "";
     sheet.style.transition = "";
   });
+}
+
+/** 引き始めに、今の大きさと広げた大きさのときの上端を測る（高さは CSS で決めているので、.expanded を付け外しして測る） */
+function measureStretchSheet(sheet) {
+  const rect = sheet.getBoundingClientRect();
+  const from = sheet.classList.contains("expanded") ? "expanded" : "normal";
+  sheet.classList.toggle("expanded");
+  const otherHeight = sheet.offsetHeight;
+  sheet.classList.toggle("expanded");
+  const normalHeight = from === "normal" ? rect.height : otherHeight;
+  const expandedHeight = from === "expanded" ? rect.height : otherHeight;
+  return {
+    from,
+    bottom: rect.bottom,
+    startTop: rect.top,
+    normalTop: rect.bottom - normalHeight,
+    expandedTop: rect.bottom - expandedHeight,
+    normalHeight,
+  };
 }
 
 /** 下に抜けてから閉じる（動きを減らす設定ならすぐ閉じる） */

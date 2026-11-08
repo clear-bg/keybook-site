@@ -972,7 +972,14 @@ footer p {
   flex-direction: column;
   height: 80vh;
   height: 80dvh;
+  max-height: none;
   overflow: hidden;
+}
+
+/* つまみを上に引いて広げたとき：画面の上に iPhone の上の余白と 16px だけ空ける（Issue #18） */
+.artist-sheet[open].expanded {
+  height: calc(100vh - 16px - env(safe-area-inset-top));
+  height: calc(100dvh - 16px - env(safe-area-inset-top));
 }
 
 .artist-sheet-head {
