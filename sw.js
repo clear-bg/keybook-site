@@ -1,9 +1,9 @@
 // Service Worker（docs/design.md 4.14）：オフラインでも閲覧ページを開けるようにする
 // - ページのファイルは、バージョンごとのキャッシュに入れておき、キャッシュを優先する
 // - HTML と songs.json は、キャッシュを先に返し、裏でネットから取り直す（songs.json が変わればページに知らせる）
-// 95768ce4c2 はビルドで内容のハッシュに置き換わる。中身が変わるのでブラウザが新しい Service Worker を入れる
+// 875b0a67bc はビルドで内容のハッシュに置き換わる。中身が変わるのでブラウザが新しい Service Worker を入れる
 
-const VERSION = "95768ce4c2";
+const VERSION = "875b0a67bc";
 const ASSET_CACHE_PREFIX = "keybook-assets-";
 const ASSET_CACHE = ASSET_CACHE_PREFIX + VERSION;
 const DATA_CACHE = "keybook-data";
