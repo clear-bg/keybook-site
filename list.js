@@ -1,7 +1,7 @@
 // 曲の一覧の処理（閲覧ページと管理画面で共用。DOM に依存しないので node --test で確かめる）
 // docs/design.md 4.9（検索）・4.16（閲覧ページ）・4.3.1（声の選択と調整）・4.16.1（曲の詳細）
 
-import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=ba37abc1c4";
+import { MIN_MIDI, MAX_MIDI, midiToNote } from "./keycalc.js?v=50e1fd488a";
 
 // ---- キーの表示 ----
 
@@ -402,12 +402,18 @@ export function chartBounds(notes) {
   return { lo: Math.min(...known) - 3, hi: Math.max(...known) + 3 };
 }
 
-/** キーの内訳（"原キー・微調整 −1"）。微調整がない・計算不能・キー指定なら null */
-export function keyBreakdown({ key, overridden }, keyAdjust) {
-  if (key == null || overridden || !keyAdjust) {
+/**
+ * キーの内訳（"原キー・微調整 −1"、"−2・男性の調整 −1"）。
+ * maleAdjust は足した男性の声の調整（keycalc.js の maleAdjustFor。4.4.3）。
+ * 足した調整がない・計算不能・キー指定なら null
+ */
+export function keyBreakdown({ key, overridden }, keyAdjust, maleAdjust = 0) {
+  const parts = [["微調整", keyAdjust ?? 0], ["男性の調整", maleAdjust ?? 0]].filter(([, value]) => value !== 0);
+  if (key == null || overridden || parts.length === 0) {
     return null;
   }
-  return `${keyText(key - keyAdjust)}・微調整 ${signed(keyAdjust)}`;
+  const base = key - parts.reduce((sum, [, value]) => sum + value, 0);
+  return [keyText(base), ...parts.map(([name, value]) => `${name} ${signed(value)}`)].join("・");
 }
 
 /** どの声で計算したか（"男性（最高音 +2）で計算"。調整している項目だけ添える） */

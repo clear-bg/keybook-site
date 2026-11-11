@@ -1,14 +1,14 @@
 // 閲覧ページ（docs/design.md 4.16）：songs.json を読み、検索・ラベル・性別・アーティストの絞り込み・並び替えをして表示する。
 // カードを押すと曲の詳細を出す（4.16.1）
 
-import { calcKey, midiToNote } from "./keycalc.js?v=ba37abc1c4";
+import { calcKey, maleAdjustFor, midiToNote } from "./keycalc.js?v=50e1fd488a";
 import {
   DEFAULT_SORT, filterByLabels, isSortKey, keyParts, labelStyle, nextSort, preselectedLabelIds, sortSongs,
   artistOptions, keepKnownArtists, matchesArtistSearch, GENDERS, genderName,
   adjustVoice, adjustedVoice, canAdjust, formatOffset, isAdjusted, resetAdjust, restoreVoiceChoice, selectVoice,
   chartBounds, formatDay, formatRange, keyBreakdown, keyShift, noteName, outsideVoice, rangeWarnings, shiftNotes,
   voiceUsedText, filterSongs, sheetDragOffset, sheetDragResult, stretchSheetTop, stretchSheetResult, filterSummary, activeFilterCount, DEFAULT_ARTIST_SORT, nextArtistSort, isArtistSortKey, artistSortValue,
-} from "./list.js?v=ba37abc1c4";
+} from "./list.js?v=50e1fd488a";
 
 const SORT_STORAGE_KEY = "keybook.sort";
 const ARTIST_SORT_STORAGE_KEY = "keybook.artistSort";
@@ -144,7 +144,7 @@ async function load() {
   let data;
   try {
     // HTML がキャッシュされていても、毎回最新の songs.json を確かめる（4.14）
-    const res = await fetch("songs.json?v=ba37abc1c4", { cache: "no-cache" });
+    const res = await fetch("songs.json?v=50e1fd488a", { cache: "no-cache" });
     if (!res.ok) {
       throw new Error(`${res.status}`);
     }
@@ -895,7 +895,7 @@ function renderDetail() {
   const voice = adjustedVoice(state.voice, data.voices);
   const result = calcKey(voice ?? { max_note: null }, song, data.settings);
   const key = keyParts(result);
-  const breakdown = keyBreakdown(result, song.key_adjust);
+  const breakdown = keyBreakdown(result, song.key_adjust, maleAdjustFor(voice, song));
   const shift = voice ? keyShift(result) : null;
   const sung = shift == null ? null : shiftNotes(song, shift);
 

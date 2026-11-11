@@ -45,7 +45,7 @@ export function midiToNote(midi) {
 
 /**
  * 原曲に対するキーを求める（4.4）。
- * 声の match_by が "min" なら最低音で、それ以外は最高音で合わせる（4.4.1）。男性の声で女性の曲は 4.4.2。
+ * 声の match_by が "min" なら最低音で、それ以外は最高音で合わせる（4.4.1）。男性の声で女性の曲は 4.4.2、男性の声の調整は 4.4.3。
  * voice・song・settings はエクスポート形式（4.8）と同じ項目名で受け取る。
  * @returns {{ key: number|null, octaveDown: boolean, octaveUp: boolean, overridden: boolean, outOfRange: boolean }}
  *   key が null なら計算不能（画面では「?」と表示する）
@@ -66,8 +66,8 @@ export function calcKey(voice, song, settings) {
   if (base == null) {
     return { key: null, octaveDown: false, octaveUp: false, overridden: false, outOfRange: false };
   }
-  // 4. 微調整を加える（±1 も丸めずに計算どおり出す）
-  let key = base.key + (song.key_adjust ?? 0);
+  // 4. 微調整を加える（±1 も丸めずに計算どおり出す）。男性の声なら男性の声の調整も足す（4.4.3）
+  let key = base.key + (song.key_adjust ?? 0) + maleAdjustFor(voice, song);
   let octaveDown = base.octaveDown;
   // 5.（4.4.2）同じ高さの1オクターブ下で範囲に収まるなら、そちらの言い方にする（伴奏が下がりすぎないように）
   if (maleForFemale && !octaveDown && !base.octaveUp && key < 0 && Math.abs(key + 12) <= settings.key_range) {
@@ -75,6 +75,11 @@ export function calcKey(voice, song, settings) {
     octaveDown = true;
   }
   return { key, octaveDown, octaveUp: base.octaveUp, overridden: false, outOfRange: isOutOfRange(key, settings) };
+}
+
+/** 足す男性の声の調整（4.4.3）：声の性別が男性なら曲の male_adjust（空なら 0）、そうでなければ 0 */
+export function maleAdjustFor(voice, song) {
+  return voice?.gender === "male" ? (song.male_adjust ?? 0) : 0;
 }
 
 /** 声の性別が男性で、曲の性別が女性か（4.4.2） */
